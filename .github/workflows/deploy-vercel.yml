@@ -1,0 +1,117 @@
+name: Deploy to Vercel
+
+# Automatic production deploy on every push to main (i.e. whenever a pull
+# request is merged). Can also be triggered by hand from the Actions tab.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Deploy target"
+        required: true
+        default: production
+        type: choice
+        options: [production, preview]
+
+concurrency:
+  group: vercel-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  deploy:
+    name: Build & deploy
+    runs-on: ubuntu-latest
+    # The preflight step below skips this job politely until the three repository
+    # secrets exist, so a fresh clone never shows a failing workflow.
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Check that deployment secrets exist
+        id: preflight
+        run: |
+          missing=""
+          [ -z "$VERCEL_TOKEN" ] && missing="$missing VERCEL_TOKEN"
+          [ -z "$VERCEL_ORG_ID" ] && missing="$missing VERCEL_ORG_ID"
+          [ -z "$VERCEL_PROJECT_ID" ] && missing="$missing VERCEL_PROJECT_ID"
+          if [ -n "$missing" ]; then
+            echo "::warning::Skipping deploy — missing repository secret(s):$missing. See DEPLOYMENT.md → 'Automatic deploys from GitHub'."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        if: steps.preflight.outputs.ready == 'true'
+
+      - uses: actions/setup-node@v5
+        if: steps.preflight.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Vercel CLI
+        if: steps.preflight.outputs.ready == 'true'
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel project settings
+        if: steps.preflight.outputs.ready == 'true'
+        env:
+          TARGET: ${{ github.event.inputs.target || 'production' }}
+        run: vercel pull --yes --environment="$TARGET" --token="$VERCEL_TOKEN"
+
+      - name: Build
+        if: steps.preflight.outputs.ready == 'true'
+        env:
+          TARGET: ${{ github.event.inputs.target || 'production' }}
+        run: |
+          if [ "$TARGET" = "production" ]; then
+            vercel build --prod --token="$VERCEL_TOKEN"
+          else
+            vercel build --token="$VERCEL_TOKEN"
+          fi
+
+      - name: Deploy
+        id: deploy
+        if: steps.preflight.outputs.ready == 'true'
+        env:
+          TARGET: ${{ github.event.inputs.target || 'production' }}
+        run: |
+          if [ "$TARGET" = "production" ]; then
+            url="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" | tail -n 1)"
+          else
+            url="$(vercel deploy --prebuilt --token="$VERCEL_TOKEN" | tail -n 1)"
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Deployed 🚀"
+            echo ""
+            echo "- URL: $url"
+            echo "- Commit: \`${{ github.sha }}\`"
+            echo "- Environment: $TARGET"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify the deployment answers a health check
+        if: steps.preflight.outputs.ready == 'true'
+        run: |
+          url="${{ steps.deploy.outputs.url }}"
+          echo "Checking $url/api/health"
+          for attempt in 1 2 3 4 5; do
+            body="$(curl -fsS --max-time 30 "$url/api/health" || true)"
+            if [ -n "$body" ]; then
+              echo "$body"
+              echo "$body" | grep -q '"ok":true' || { echo "::error::Health check failed: $body"; exit 1; }
+              echo "$body" | grep -q '"persistent":true' || echo "::warning::Database is NOT persistent — set DATABASE_URL to your Neon connection string in Vercel → Settings → Environment Variables."
+              exit 0
+            fi
+            echo "Attempt $attempt did not respond, retrying in 10s…"
+            sleep 10
+          done
+          echo "::error::The deployment did not answer $url/api/health"
+          exit 1
