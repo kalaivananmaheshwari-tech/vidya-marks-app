@@ -17,20 +17,15 @@ const NAV: NavGroup[] = [
   {
     title: "Academic setup",
     items: [
-      { href: "/classes", label: "1. Classes & sections", icon: "🏫" },
-      { href: "/mark-assign", label: "2. Mark assign", icon: "⚖️" },
-      { href: "/staff", label: "3. Teachers", icon: "👩‍🏫" },
-      { href: "/groups", label: "Group codes", icon: "🧩" },
-      { href: "/subjects", label: "Subjects", icon: "📚" },
-      { href: "/exams", label: "Examinations", icon: "🗓️" },
-    ],
-  },
-  {
-    title: "Daily work",
-    items: [
-      { href: "/students/entry", label: "Student entry & marks", icon: "📝" },
-      { href: "/students", label: "Student register", icon: "🎓" },
-      { href: "/marks", label: "Class mark sheet", icon: "✍️" },
+      { href: "/exams", label: "1. Examinations", icon: "🗓️" },
+      { href: "/staff", label: "2. Teachers", icon: "👩‍🏫" },
+      { href: "/classes", label: "3. Classes & Sections", icon: "🏫" },
+      { href: "/subjects", label: "4. Subjects", icon: "📚" },
+      { href: "/mark-assign", label: "5. Marks Assign", icon: "⚖️" },
+      { href: "/students/entry", label: "6. Student Entry and Marks", icon: "📝" },
+      { href: "/students", label: "7. Students Register", icon: "🎓" },
+      { href: "/marks", label: "8. Class wise and subject wise mark Entry", icon: "✍️" },
+      { href: "/groups", label: "Group codes (11 & 12)", icon: "🧩" },
     ],
   },
   {

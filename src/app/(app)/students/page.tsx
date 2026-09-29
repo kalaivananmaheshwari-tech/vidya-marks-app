@@ -157,8 +157,8 @@ export default function StudentsPage() {
     <>
       <PageHeader
         icon="🎓"
-        title="Students"
-        subtitle="Admission register with performance snapshot"
+        title="Students Register"
+        subtitle="Student register with Exam No. and performance snapshot"
         actions={
           <div className="flex items-center gap-2">
             <Link href="/students/entry">
@@ -220,7 +220,7 @@ export default function StudentsPage() {
             <table className="w-full min-w-[880px] text-sm">
               <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-5 py-3 font-semibold">Roll</th>
+                  <th className="px-5 py-3 font-semibold">Exam No.</th>
                   <th className="px-3 py-3 font-semibold">Student</th>
                   <th className="px-3 py-3 font-semibold">Class</th>
                   <th className="px-3 py-3 font-semibold">Guardian</th>
@@ -347,7 +347,7 @@ export default function StudentsPage() {
                 placeholder="Auto"
               />
             </Field>
-            <Field label="Roll no.">
+            <Field label="Exam No.">
               <Input
                 type="number"
                 value={form.rollNo}

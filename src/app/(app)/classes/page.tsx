@@ -38,7 +38,7 @@ const DEFAULT_SUBJECTS_6_TO_10 = [
   "Science",
   "Social Science",
   "PET",
-  "TNSMART",
+  "TNSPARK",
   "Science Tamil",
 ];
 
