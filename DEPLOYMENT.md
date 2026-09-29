@@ -26,29 +26,109 @@ Nothing is broken in the application — it is the hosting that is temporary.
 
 ---
 
-## Option 1 · Vercel + Neon (easiest, free tier available)
+## Option 1 · Vercel + Neon (easiest, free tier available) ⭐ recommended
 
 Best if you want a public URL in ~5 minutes with zero server administration.
 
-1. **Create a database** at [neon.tech](https://neon.tech) (free). Copy the connection
-   string — it looks like
-   `postgresql://user:pass@ep-xxx.aws.neon.tech/neondb?sslmode=require`
-2. **Push this project to GitHub.**
-3. Go to [vercel.com/new](https://vercel.com/new), import the repository.
-4. Under **Environment Variables** add:
+> **Why a database is mandatory on Vercel.** Vercel runs your code as short-lived
+> serverless functions with a read-only project directory. The embedded PGlite
+> fallback has nowhere durable to write, so **every redeploy or cold start would
+> start empty.** Point `DATABASE_URL` at Neon and your schools, students and marks
+> persist forever.
+>
+> Confirm at any time by opening `https://<your-url>/api/health` — it must say
+> `"database":"postgres","persistent":true`.
 
-   | Name | Value |
-   |------|-------|
-   | `DATABASE_URL` | your Neon connection string |
+### Step 1 · Create the Neon database
 
-5. Click **Deploy**.
+1. Sign in at [neon.tech](https://neon.tech) → **Create project**
+   (name it `vidya-analytics`, pick the region closest to you, e.g. Singapore).
+2. On the project dashboard open **Connection string** / **Connect**.
+3. Choose the **Pooled connection** (the host contains `-pooler`) and make sure
+   **Prisma / node-postgres** or plain **Connection string** is selected. It looks
+   like:
 
-You get a permanent URL like `https://vidya-analytics.vercel.app`, plus automatic
-HTTPS and redeploys on every git push. Add your own domain under
-**Settings → Domains** if you have one.
+   ```
+   postgresql://user:password@ep-xxx-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+   ```
 
-> No migration step is needed. On first boot the app creates its own tables and seeds
-> the demo school (see `src/instrumentation.ts`).
+4. Copy it — this single line is the only secret the app needs.
+
+> Use the **pooled** string, not the direct one: serverless functions open a new
+> connection per instance and pooling keeps you inside Neon's free-tier limit.
+
+### Step 2 · Import into Vercel
+
+1. Go to [vercel.com/new](https://vercel.com/new) and import
+   `kalaivananmaheshwari-tech/vidya-marks-app`.
+2. Framework preset: **Next.js** (auto-detected). Leave build/install commands as
+   they are — `package.json` already has the right scripts.
+3. Open **Environment Variables** and add:
+
+   | Name | Value | Environments |
+   |------|-------|--------------|
+   | `DATABASE_URL` | your pooled Neon connection string | Production, Preview, Development |
+
+4. Click **Deploy**. The first build takes 1–3 minutes.
+
+You get a permanent URL like `https://vidya-marks-app.vercel.app`, with automatic
+HTTPS. Add your own domain under **Settings → Domains** if you have one.
+
+### Step 3 · First run
+
+1. Open the URL — you land on the sign-in page.
+2. Click **Register your school**, enter your real school name, your genuine
+   11-digit UDISE code and a strong password. That becomes your admin login.
+3. Delete the demo school when you no longer need it:
+
+   ```sql
+   DELETE FROM schools WHERE udise_code = '33064500112';
+   ```
+
+### Automatic deploys from GitHub (optional)
+
+Vercel already redeploys when you push, but the included workflow
+`.github/workflows/deploy-vercel.yml` gives you a **tested deploy**: it builds,
+deploys, and then fails the run if `/api/health` does not report a healthy,
+persistent database. It runs on every push to `main`.
+
+1. Collect the three values:
+
+   ```bash
+   npx vercel login              # once, on your machine
+   cd vidya-marks-app && npx vercel link
+   cat .vercel/project.json      # → orgId, projectId
+   ```
+
+   Create a token at [vercel.com/account/tokens](https://vercel.com/account/tokens)
+   (scope: your account, no expiry or a long one).
+
+2. In GitHub open **Settings → Secrets and variables → Actions → New repository secret**
+   and add:
+
+   | Secret | Where to find it |
+   |--------|------------------|
+   | `VERCEL_TOKEN` | the token you just created |
+   | `VERCEL_ORG_ID` | `orgId` in `.vercel/project.json` |
+   | `VERCEL_PROJECT_ID` | `projectId` in `.vercel/project.json` |
+
+3. Done. Every merge to `main` now deploys automatically, and anything that would
+   break the live site fails the workflow instead of shipping.
+
+> Until those three secrets exist the workflow skips itself with a warning — it will
+> never fail red and it never needs a password or token to be shared with anyone.
+
+### Keeping the demo data out of production
+
+The demo school is seeded automatically so the app is never empty on first visit.
+Once your real school is registered, delete it from the Neon **SQL Editor**:
+
+```sql
+DELETE FROM schools WHERE udise_code = '33064500112';
+```
+
+Every table cascades from `schools`, so this cleanly removes all demo students,
+marks, classes and logins while leaving your school untouched.
 
 ---
 
@@ -125,10 +205,10 @@ cat backup-2026-01-15.sql | docker compose exec -T db psql -U vidya -d vidya_ana
 |------|-------|
 | Node.js | 20 or newer (22 recommended) |
 | Database | PostgreSQL 14 or newer |
-| Required env var | `DATABASE_URL` |
+| Required env var | `DATABASE_URL` — **mandatory on serverless hosts** (Vercel, Railway, Render); optional in local dev, where the embedded PGlite database is used |
 | Build command | `npm run build` |
 | Start command | `npm run start` |
-| Health check path | `/api/health` |
+| Health check path | `/api/health` → `{ "ok": true, "schools": 1, "database": "postgres", "persistent": true }` |
 | Migrations | none — schema is created automatically on boot |
 
 ---
@@ -140,18 +220,6 @@ cat backup-2026-01-15.sql | docker compose exec -T db psql -U vidya -d vidya_ana
    11-digit UDISE code and a strong password. This becomes your admin login.
 3. Go to **Teacher logins** and create an account for each teacher.
 4. Set up group codes → classes → subjects → students → exams, then enter marks.
-
-### About the demo school
-
-A demo school (UDISE `33064500112`) is seeded so the app is never empty on first
-visit. Once your real school is registered you can remove the demo data:
-
-```sql
-DELETE FROM schools WHERE udise_code = '33064500112';
-```
-
-Every table cascades from `schools`, so this cleanly removes all demo students,
-marks, classes and logins while leaving your school untouched.
 
 ---
 

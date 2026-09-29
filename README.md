@@ -42,12 +42,18 @@ to run.
 
 The development preview URL is temporary and changes whenever the sandbox restarts.
 See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for step-by-step instructions covering
-Vercel + Neon, Railway, Render and self-hosted Docker.
+Vercel + Neon (recommended), Railway, Render and self-hosted Docker, including the
+optional GitHub Actions workflow that verifies each deploy.
 
 ```bash
+# Vercel + Neon: create a Neon database, then set DATABASE_URL in Vercel and deploy
 # self-hosted, one command
 docker compose up -d --build
 ```
+
+> ⚠️ On Vercel the embedded database cannot persist — `DATABASE_URL` pointing at
+> Neon (or any PostgreSQL) is **required**. Open `/api/health` and check for
+> `"persistent": true` to be sure.
 
 ## Project layout
 
@@ -71,8 +77,11 @@ src/
 
 | Name | Required | Description |
 |------|----------|-------------|
-| `DATABASE_URL` | yes | PostgreSQL connection string |
+| `DATABASE_URL` | production: yes | PostgreSQL connection string. Omit locally to use the embedded PGlite database. |
 
 ## Health check
 
-`GET /api/health` → `{ "ok": true, "schools": 1 }`
+`GET /api/health` → `{ "ok": true, "schools": 1, "database": "postgres", "persistent": true }`
+
+`database` reports which backend answered (`postgres` = durable, `pglite` = embedded),
+and `persistent: true` confirms data will survive a restart/redeploy.
