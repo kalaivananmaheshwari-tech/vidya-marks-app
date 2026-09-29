@@ -221,9 +221,9 @@ export default function OfficialReportsPage() {
   const school = data?.school;
   const selectedClass = data?.selectedClass;
   const selectedExam = data?.selectedExam;
-  const subjects = data?.subjects ?? [];
-  const consolidatedList = data?.consolidatedList ?? [];
-  const subjectAnalysisList = data?.subjectAnalysisList ?? [];
+  const subjects = useMemo(() => data?.subjects ?? [], [data?.subjects]);
+  const consolidatedList = useMemo(() => data?.consolidatedList ?? [], [data?.consolidatedList]);
+  const subjectAnalysisList = useMemo(() => data?.subjectAnalysisList ?? [], [data?.subjectAnalysisList]);
   const matrixReport = data?.matrixReport;
 
   const currentSubjectAnalysis = useMemo(() => {

@@ -107,7 +107,7 @@ export async function overviewReport(schoolId: number, examId?: number) {
     subjectSnapshot,
     gradeDistribution,
     examTrend,
-    topStudents: totals.slice(0, 8),
+    topStudents: totals.filter((t) => t.rank > 0).slice(0, 8),
     needsAttention: totals
       .filter((t) => t.percentage < 50 || t.failedSubjects > 0)
       .sort((a, b) => a.percentage - b.percentage)
@@ -212,7 +212,7 @@ export async function classReport(filters: MarkFilters) {
       distinction: s.distinction,
       failCount: totals.filter((t) => t.failedSubjects > 0).length,
       grades: s.grades,
-      toppers: totals.slice(0, 3),
+      toppers: totals.filter((t) => t.rank > 0).slice(0, 3),
       strongest: subjectStats[0] ?? null,
       weakest: subjectStats[subjectStats.length - 1] ?? null,
       subjectStats,
@@ -245,7 +245,7 @@ export async function sectionReport(filters: MarkFilters & { grade?: string }) {
             highest: s.highest,
             distinction: s.distinction,
             failCount: totals.filter((t) => t.failedSubjects > 0).length,
-            topper: totals[0] ?? null,
+            topper: totals.find((t) => t.rank > 0) ?? null,
             grades: s.grades,
           };
         })
@@ -299,7 +299,8 @@ export async function studentReport(studentId: number, schoolId: number) {
     const maxTotal = scored.reduce((sum, r) => sum + (r.maxMarks || 100), 0);
     const percentage = maxTotal ? round((total / maxTotal) * 100) : 0;
     const classExamTotals = studentTotals(classRows.filter((r) => r.examId === examId));
-    const rank = classExamTotals.findIndex((t) => t.studentId === studentId) + 1;
+    const studentEntry = classExamTotals.find((t) => t.studentId === studentId);
+    const rank = studentEntry?.rank && studentEntry.rank > 0 ? studentEntry.rank : null;
     return {
       examId,
       examName: examRows[0].examName,
