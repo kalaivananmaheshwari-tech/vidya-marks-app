@@ -205,6 +205,7 @@ export default function MarkEntryPage() {
     rawVal: string,
     maxLimit: number,
     fieldTitle: string,
+    inputEl?: HTMLInputElement,
   ) {
     if (rawVal === "") {
       setDraft(studentId, { [field]: "" });
@@ -213,12 +214,18 @@ export default function MarkEntryPage() {
     const n = Number(rawVal);
     if (isNaN(n)) return;
     if (n < 0) {
+      if (inputEl) inputEl.value = "0";
       setDraft(studentId, { [field]: "0" });
       return;
     }
     if (n > maxLimit) {
       toast.push(`Mark cannot exceed assigned ${fieldTitle} limit of ${maxLimit}`, "error");
-      setDraft(studentId, { [field]: String(maxLimit) });
+      // Wipe the rejected value from the screen immediately. The DOM node is
+      // cleared directly because React skips re-rendering when the state value
+      // is unchanged (e.g. the field was already empty), which would otherwise
+      // leave the out-of-range number visible in the input.
+      if (inputEl) inputEl.value = "";
+      setDraft(studentId, { [field]: "" });
       return;
     }
     setDraft(studentId, { [field]: rawVal });
@@ -473,7 +480,14 @@ export default function MarkEntryPage() {
                             max={theoryMax}
                             onKeyDown={(e) => handleKeyDown(e, index * 3)}
                             onChange={(e) =>
-                              handleScoreInput(row.studentId, "theoryScore", e.target.value, theoryMax, "Theory")
+                              handleScoreInput(
+                                row.studentId,
+                                "theoryScore",
+                                e.target.value,
+                                theoryMax,
+                                "Theory",
+                                e.currentTarget,
+                              )
                             }
                             className="w-20 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm font-semibold tabular-nums text-slate-800 shadow-sm transition focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100 disabled:bg-slate-100"
                             placeholder={`0-${theoryMax}`}
