@@ -93,8 +93,8 @@ export default function MarkEntryPage() {
 
   const { data, loading, error, refresh, refreshing } = useApi<MarksResponse>(url, [url]);
 
-  const subjects = data?.subjects ?? [];
-  const roster = data?.roster ?? [];
+  const subjects = useMemo(() => data?.subjects ?? [], [data?.subjects]);
+  const roster = useMemo(() => data?.roster ?? [], [data?.roster]);
   const subject = data?.subject ?? subjects.find((s) => String(s.id) === subjectId) ?? null;
 
   const hasPractical = subject?.hasPractical ?? false;

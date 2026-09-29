@@ -86,7 +86,7 @@ export default function StaffPage() {
 
   const isAdmin = me.data?.user?.role === "admin";
   const udise = schoolInfo.data?.school?.udiseCode ?? "";
-  const staff = data?.teachers ?? [];
+  const staff = useMemo(() => data?.teachers ?? [], [data?.teachers]);
   const admins = useMemo(() => staff.filter((t) => t.role === "admin"), [staff]);
   const teachers = useMemo(() => staff.filter((t) => t.role !== "admin"), [staff]);
 

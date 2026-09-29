@@ -42,7 +42,7 @@ export default function ClassAnalysisPage() {
     [examId],
   );
   const { data, loading, error, refresh } = useApi<Response>(url, [url]);
-  const rows = data?.classes ?? [];
+  const rows = useMemo(() => data?.classes ?? [], [data?.classes]);
 
   // Set default exam
   useEffect(() => {

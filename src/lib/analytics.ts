@@ -143,6 +143,39 @@ export type StudentTotal = {
   rank: number;
 };
 
+/**
+ * Standard Competition Ranking (1224 ranking) with proper tie handling:
+ * Items with equal score/percentage receive the same rank; subsequent ranks skip accordingly.
+ * In school mark analysis, only students with 0 arrears (failedSubjects === 0) receive a positive rank (1, 2, ...).
+ * Students with arrears receive rank 0 (unranked).
+ */
+export function assignCompetitionRanks<
+  T extends { rank: number; value: number; failedSubjects?: number },
+>(items: T[]): void {
+  // Sort descending by value
+  items.sort((a, b) => b.value - a.value);
+
+  let currentRank = 1;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.failedSubjects !== undefined && item.failedSubjects > 0) {
+      item.rank = 0;
+      continue;
+    }
+
+    if (i > 0) {
+      const prev = items[i - 1];
+      if (prev.rank > 0 && item.value === prev.value) {
+        item.rank = prev.rank; // Tied
+      } else {
+        item.rank = i + 1;
+      }
+    } else {
+      item.rank = 1;
+    }
+  }
+}
+
 export function studentTotals(rows: MarkRow[]): StudentTotal[] {
   const byStudent = groupBy(rows, (r) => r.studentId);
   const totals: StudentTotal[] = [];
@@ -171,9 +204,13 @@ export function studentTotals(rows: MarkRow[]): StudentTotal[] {
       rank: 0,
     });
   }
-  totals.sort((a, b) => b.percentage - a.percentage);
-  totals.forEach((t, i) => {
-    t.rank = i + 1;
+  // Sort descending by percentage, then assign competition ranks with tie handling
+  const rankAdapters = totals.map((t) => ({ ...t, value: t.percentage }));
+  assignCompetitionRanks(rankAdapters);
+  rankAdapters.forEach((r, idx) => {
+    totals[idx].rank = r.rank;
   });
+  // Keep totals sorted with highest percentage first
+  totals.sort((a, b) => b.percentage - a.percentage);
   return totals;
 }

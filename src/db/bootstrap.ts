@@ -172,25 +172,25 @@ async function createSchema(): Promise<void> {
   );
 
   // Safe migrations for existing databases
-  await db.execute(sql`
-    alter table subjects add column if not exists class_id integer references classes(id) on delete cascade;
-    alter table subjects add column if not exists has_practical boolean not null default false;
-    alter table subjects add column if not exists theory_marks integer not null default 90;
-    alter table subjects add column if not exists practical_marks integer not null default 0;
-    alter table subjects add column if not exists internal_marks integer not null default 10;
+  const migrations = [
+    sql`alter table subjects add column if not exists class_id integer references classes(id) on delete cascade`,
+    sql`alter table subjects add column if not exists has_practical boolean not null default false`,
+    sql`alter table subjects add column if not exists theory_marks integer not null default 90`,
+    sql`alter table subjects add column if not exists practical_marks integer not null default 0`,
+    sql`alter table subjects add column if not exists internal_marks integer not null default 10`,
+    sql`alter table marks add column if not exists theory_score real`,
+    sql`alter table marks add column if not exists practical_score real`,
+    sql`alter table marks add column if not exists internal_score real`,
+    sql`alter table marks add column if not exists fa_a_score real`,
+    sql`alter table marks add column if not exists fa_b_score real`,
+    sql`alter table marks add column if not exists sa_score real`,
+    sql`alter table students add column if not exists emis_id text`,
+    sql`alter table users add column if not exists handling_subjects text`,
+    sql`alter table exams add column if not exists month text`,
+    sql`alter table exams add column if not exists year text`,
+  ];
 
-    alter table marks add column if not exists theory_score real;
-    alter table marks add column if not exists practical_score real;
-    alter table marks add column if not exists internal_score real;
-    alter table marks add column if not exists fa_a_score real;
-    alter table marks add column if not exists fa_b_score real;
-    alter table marks add column if not exists sa_score real;
-
-    alter table students add column if not exists emis_id text;
-
-    alter table users add column if not exists handling_subjects text;
-
-    alter table exams add column if not exists month text;
-    alter table exams add column if not exists year text;
-  `);
+  for (const m of migrations) {
+    await db.execute(m);
+  }
 }

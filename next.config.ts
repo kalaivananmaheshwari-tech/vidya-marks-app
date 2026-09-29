@@ -9,6 +9,7 @@ const isContainerBuild = process.env.DOCKER_BUILD === "1";
 
 const nextConfig: NextConfig = {
   ...(isContainerBuild ? { output: "standalone" as const } : {}),
+  serverExternalPackages: ["@electric-sql/pglite", "pg"],
   poweredByHeader: false,
 };
 

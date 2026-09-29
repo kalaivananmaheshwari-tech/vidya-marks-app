@@ -128,10 +128,25 @@ input[type="number"] {
   .no-print {
     display: none !important;
   }
+  .official-table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    page-break-inside: auto;
+  }
+  .official-table tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto;
+  }
+  .official-table thead {
+    display: table-header-group !important;
+  }
+  .official-table tfoot {
+    display: table-footer-group !important;
+  }
   .official-table,
   .official-table th,
   .official-table td {
-    border: 1px solid #1e293b !important;
+    border: 1px solid #000 !important;
     color: #000 !important;
     background-color: #fff !important;
   }
@@ -142,12 +157,14 @@ input[type="number"] {
   }
   .print-page {
     width: 100% !important;
+    max-width: 100% !important;
     padding: 0 !important;
     margin: 0 !important;
     box-shadow: none !important;
     border: none !important;
   }
   @page {
+    size: auto;
     margin: 8mm;
   }
   @page :left {

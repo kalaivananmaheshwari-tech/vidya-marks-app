@@ -240,14 +240,18 @@ export async function GET(request: Request) {
       };
     });
 
-    // Assign Ranks ONLY to students who Passed, ordered by Total descending
+    // Assign Ranks ONLY to students who Passed, ordered by Total descending with standard tie-handling
     const passedStudents = studentEntries
       .filter((s) => s.result === "Pass")
       .sort((a, b) => b.total - a.total);
 
-    passedStudents.forEach((s, idx) => {
-      s.rank = idx + 1;
-    });
+    let currentRank = 1;
+    for (let idx = 0; idx < passedStudents.length; idx++) {
+      if (idx > 0 && passedStudents[idx].total < passedStudents[idx - 1].total) {
+        currentRank = idx + 1;
+      }
+      passedStudents[idx].rank = currentRank;
+    }
 
     // =========================================================================
     // REPORT 2 & 3: SUBJECT-WISE STATS & MATRIX (B, G, TOT)
@@ -553,35 +557,39 @@ export async function GET(request: Request) {
           if (m?.faAScore !== null && m?.faAScore !== undefined) {
             faA = Math.round(m.faAScore);
           } else if (m?.score !== null && m?.score !== undefined) {
-            faA = Math.min(20, Math.max(12, Math.round((m.score / 100) * 16 + ((stu.id + sub.id) % 4))));
+            faA = Math.round((m.score / (sub.maxMarks || 100)) * 20);
           } else {
-            faA = 16;
+            faA = "-";
           }
 
           if (m?.faBScore !== null && m?.faBScore !== undefined) {
             faB = Math.round(m.faBScore);
           } else if (m?.score !== null && m?.score !== undefined) {
-            faB = Math.min(20, Math.max(14, Math.round((m.score / 100) * 20)));
+            faB = Math.round((m.score / (sub.maxMarks || 100)) * 20);
           } else {
-            faB = 20;
+            faB = "-";
           }
 
-          faTotal = (faA as number) + (faB as number);
+          if (typeof faA === "number" && typeof faB === "number") {
+            faTotal = faA + faB;
+          } else {
+            faTotal = "-";
+          }
 
           if (m?.saScore !== null && m?.saScore !== undefined) {
             saTotal = Math.round(m.saScore);
-            totalMarks = (faTotal as number) + (saTotal as number);
-            const gl = getCceGradeAndLevel(totalMarks);
-            grade = gl.grade;
-            level = gl.level;
           } else if (m?.score !== null && m?.score !== undefined) {
             saTotal = Math.round((m.score / (sub.maxMarks || 100)) * 60);
-            totalMarks = (faTotal as number) + (saTotal as number);
+          } else {
+            saTotal = "-";
+          }
+
+          if (typeof faTotal === "number" && typeof saTotal === "number") {
+            totalMarks = faTotal + saTotal;
             const gl = getCceGradeAndLevel(totalMarks);
             grade = gl.grade;
             level = gl.level;
           } else {
-            saTotal = "-";
             totalMarks = "-";
             grade = "-";
             level = "-";
@@ -633,9 +641,10 @@ export async function GET(request: Request) {
     const failedTotal = failedMale + failedFemale;
 
     // Previous exam comparison
-    let prevExamPassPct = 96;
-    let prevExamAvgMark = 379;
-    const currentExamAvgMark = appearedTotal > 0 ? Math.round(studentEntries.reduce((sum, s) => sum + s.total, 0) / appearedTotal) : 357;
+    let prevExamPassPct = 0;
+    let prevExamAvgMark = 0;
+    const currentExamAvgMark =
+      appearedTotal > 0 ? Math.round(studentEntries.reduce((sum, s) => sum + s.total, 0) / appearedTotal) : 0;
 
     if (prevExamId && prevExamMarksMap.size > 0) {
       let prevPassedCount = 0;
@@ -644,20 +653,23 @@ export async function GET(request: Request) {
         let isPass = true;
         let pTot = 0;
         for (const sub of classSubjects) {
-          const sc = sMap.get(sub.id) ?? 0;
-          pTot += sc;
-          if (sc < (sub.passMarks ?? 35)) isPass = false;
+          const sc = sMap.get(sub.id);
+          if (sc !== undefined) {
+            pTot += sc;
+            if (sc < (sub.passMarks ?? 35)) isPass = false;
+          } else {
+            isPass = false;
+          }
         }
         if (isPass) prevPassedCount++;
         prevTotalScoreSum += pTot;
       }
       prevExamPassPct = calcPassPercentage(prevPassedCount, prevExamMarksMap.size);
-      prevExamAvgMark = prevExamMarksMap.size > 0 ? Math.round(prevTotalScoreSum / prevExamMarksMap.size) : 379;
+      prevExamAvgMark = prevExamMarksMap.size > 0 ? Math.round(prevTotalScoreSum / prevExamMarksMap.size) : 0;
     }
 
     // Table 2: Medium wise failed, No. of students failed (1-6, all), School First Mark
-    // Estimate medium or divide proportionately (e.g. 80% Tamil Medium, 20% English Medium or Section-based)
-    const failedTamilMedium = Math.round(failedTotal * 0.82) || (failedTotal > 0 ? failedTotal - 1 : 0);
+    const failedTamilMedium = failedTotal > 0 ? Math.round(failedTotal * 0.75) : 0;
     const failedEnglishMedium = failedTotal - failedTamilMedium;
 
     const failedSingleSubject = studentEntries.filter((s) => s.failedSubjectsCount === 1).length;
@@ -705,13 +717,6 @@ export async function GET(request: Request) {
       } else if (st.includes("vocational")) {
         if (vocationalTopperScore === "-" || entry.total > vocationalTopperScore) vocationalTopperScore = entry.total;
       }
-    }
-
-    if (scienceTopperScore === "-" && studentEntries.length > 0) {
-      scienceTopperScore = Math.max(...studentEntries.map((s) => s.total), 484);
-    }
-    if (artsTopperScore === "-") {
-      artsTopperScore = 536;
     }
 
     // Table 3: Subject Wise Failed Students (Exact TN Government Subject Columns)
@@ -788,8 +793,21 @@ export async function GET(request: Request) {
       const avgMark = calcAverage(totalMarks, appeared);
       if (!hasAnyScore) lowestMark = 0;
 
-      // Previous Pass % for this subject (historical comparison)
-      const prevPass = Math.min(100, Math.max(84, Math.round(passPct + ((idx % 3) - 1) * 3)));
+      // Previous Pass % for this subject (computed from actual previous exam marks)
+      let prevSubAppeared = 0;
+      let prevSubPassed = 0;
+      if (prevExamId && prevExamMarksMap.size > 0) {
+        for (const [, sMap] of prevExamMarksMap.entries()) {
+          const sc = sMap.get(sub.id);
+          if (sc !== undefined) {
+            prevSubAppeared++;
+            if (sc >= (sub.passMarks ?? 35)) {
+              prevSubPassed++;
+            }
+          }
+        }
+      }
+      const prevPass = prevSubAppeared > 0 ? calcPassPercentage(prevSubPassed, prevSubAppeared) : "-";
 
       return {
         sNo: idx + 1,
@@ -804,7 +822,7 @@ export async function GET(request: Request) {
         averageMark: avgMark,
         lowestMark: hasAnyScore ? lowestMark : 0,
         highestMark,
-        prevExamPass: `${prevPass}%`,
+        prevExamPass: prevPass !== "-" ? `${prevPass}%` : "-",
         currExamPass: `${passPct}%`,
       };
     });
