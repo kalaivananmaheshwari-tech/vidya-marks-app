@@ -11,7 +11,7 @@ const SETUP_STEPS = [
     icon: "🏫",
     title: "Classes & sections",
     href: "/classes",
-    body: "Name of the class & section. If Class is 11 or 12: display Group Code + Sub 1 to Sub 6 entered by user. If Class is 6 to 10: Group Code is disabled and sets to Default 8 subjects (Language, English, Mathematics, Science, Social Science, PET, TNSMART, Science Tamil).",
+    body: "Name of the class & section. If Class is 11 or 12: display Group Code + Sub 1 to Sub 6 entered by user. If Class is 6 to 10: Group Code is disabled and sets to Default 8 subjects (Language, English, Mathematics, Science, Social Science, PET, TNSPARK, Science Tamil).",
     tip: "Classes 11 & 12 let you configure all 6 group subjects right in the modal.",
   },
   {

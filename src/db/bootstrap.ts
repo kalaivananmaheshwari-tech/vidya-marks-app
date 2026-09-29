@@ -188,6 +188,7 @@ async function createSchema(): Promise<void> {
     sql`alter table users add column if not exists handling_subjects text`,
     sql`alter table exams add column if not exists month text`,
     sql`alter table exams add column if not exists year text`,
+    sql`update subjects set name = 'TNSPARK' where name = 'TNSMART'`,
   ];
 
   for (const m of migrations) {

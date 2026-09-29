@@ -355,15 +355,6 @@ export async function POST(request: Request) {
       const name = str(body.name);
       if (!name) return json({ error: "Student name is required." }, 400);
 
-      let admissionNo = str(body.admissionNo);
-      if (!admissionNo) {
-        const [total] = await db
-          .select({ value: sql<number>`count(*)::int` })
-          .from(students)
-          .where(eq(students.schoolId, user.schoolId));
-        admissionNo = `ADM${new Date().getFullYear()}${String((total?.value ?? 0) + 1).padStart(4, "0")}`;
-      }
-
       let rollNo = int(body.rollNo);
       if (!rollNo) {
         const [max] = await db
@@ -371,6 +362,11 @@ export async function POST(request: Request) {
           .from(students)
           .where(eq(students.classId, classId));
         rollNo = (max?.value ?? 0) + 1;
+      }
+
+      let admissionNo = str(body.admissionNo);
+      if (!admissionNo) {
+        admissionNo = `EXAM-${classId}-${rollNo}-${Date.now().toString().slice(-4)}`;
       }
 
       const [created] = await db
@@ -398,6 +394,18 @@ export async function POST(request: Request) {
     let savedMarksCount = 0;
 
     if (examId && marksEntries.length > 0 && studentId) {
+      const classSubjectsList = await db
+        .select({
+          id: subjects.id,
+          theoryMarks: subjects.theoryMarks,
+          practicalMarks: subjects.practicalMarks,
+          internalMarks: subjects.internalMarks,
+          maxMarks: subjects.maxMarks,
+        })
+        .from(subjects)
+        .where(eq(subjects.schoolId, user.schoolId));
+      const subMap = new Map(classSubjectsList.map((s) => [s.id, s]));
+
       const values: Array<typeof marks.$inferInsert> = [];
 
       for (const entry of marksEntries) {
@@ -429,15 +437,26 @@ export async function POST(request: Request) {
           return Number.isFinite(n) ? n : null;
         };
 
-        const theoryScore = parseNum(entry.theoryScore);
-        const practicalScore = parseNum(entry.practicalScore);
-        const internalScore = parseNum(entry.internalScore);
+        const subMeta = subMap.get(subjectId);
+        const tMax = subMeta?.theoryMarks ?? 100;
+        const pMax = subMeta?.practicalMarks ?? 0;
+        const iMax = subMeta?.internalMarks ?? 10;
+
+        const rawTheory = parseNum(entry.theoryScore);
+        const rawPractical = parseNum(entry.practicalScore);
+        const rawInternal = parseNum(entry.internalScore);
+
+        // Clamp to not exceed assigned marks
+        const theoryScore = rawTheory !== null ? Math.min(Math.max(0, rawTheory), tMax) : null;
+        const practicalScore = rawPractical !== null ? Math.min(Math.max(0, rawPractical), pMax) : null;
+        const internalScore = rawInternal !== null ? Math.min(Math.max(0, rawInternal), iMax) : null;
 
         let totalScore: number | null = null;
         if (theoryScore !== null || practicalScore !== null || internalScore !== null) {
           totalScore = (theoryScore ?? 0) + (practicalScore ?? 0) + (internalScore ?? 0);
-        } else {
-          totalScore = parseNum(entry.score);
+        } else if (entry.score !== null && entry.score !== undefined) {
+          const rawScore = parseNum(entry.score);
+          totalScore = rawScore !== null ? Math.min(Math.max(0, rawScore), subMeta?.maxMarks ?? 100) : null;
         }
 
         values.push({
