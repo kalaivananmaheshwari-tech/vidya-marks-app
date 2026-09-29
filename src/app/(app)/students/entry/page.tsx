@@ -285,6 +285,7 @@ export default function StudentEntryPage() {
     rawVal: string,
     maxLimit: number,
     fieldTitle: string,
+    inputEl?: HTMLInputElement,
   ) {
     if (rawVal === "") {
       setDraft(subId, { [field]: "" });
@@ -293,12 +294,18 @@ export default function StudentEntryPage() {
     const num = Number(rawVal);
     if (isNaN(num)) return;
     if (num < 0) {
+      if (inputEl) inputEl.value = "0";
       setDraft(subId, { [field]: "0" });
       return;
     }
     if (num > maxLimit) {
       toast.push(`Mark cannot exceed assigned ${fieldTitle} maximum (${maxLimit})`, "error");
-      setDraft(subId, { [field]: String(maxLimit) });
+      // Wipe the rejected value from the screen immediately. The DOM node is
+      // cleared directly because React skips re-rendering when the state value
+      // is unchanged (e.g. the field was already empty), which would otherwise
+      // leave the out-of-range number visible in the input.
+      if (inputEl) inputEl.value = "";
+      setDraft(subId, { [field]: "" });
       return;
     }
     setDraft(subId, { [field]: rawVal });
@@ -999,6 +1006,7 @@ export default function StudentEntryPage() {
                               e.target.value,
                               sub.theoryMarks,
                               "Theory",
+                              e.currentTarget,
                             )
                           }
                           className="w-24 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm font-semibold tabular-nums text-slate-800 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100 disabled:bg-slate-100"
