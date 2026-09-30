@@ -12,6 +12,7 @@ import {
   type ReactNode,
   type SelectHTMLAttributes,
 } from "react";
+import { createPortal } from "react-dom";
 import { classNames } from "@/lib/client";
 
 /* ------------------------------- Containers ------------------------------ */
@@ -282,8 +283,18 @@ export function Modal({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
-  return (
+  // Render the window in a portal on <body> so that `fixed inset-0` is measured
+  // against the viewport. Any ancestor carrying a transform (the app shell wraps
+  // page content in `.animate-fade-up`, whose `animation-fill-mode: both` keeps a
+  // `translateY(0)` transform applied) becomes the containing block for fixed
+  // descendants — which would otherwise leave this child window centred on the
+  // scrolling content column instead of the centre of the screen.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!open || !mounted) return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-slate-900/40 p-0 backdrop-blur-sm sm:items-center sm:p-6">
       <div
         className={classNames(
@@ -309,7 +320,8 @@ export function Modal({
           <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">{footer}</div>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
