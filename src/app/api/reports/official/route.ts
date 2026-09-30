@@ -227,7 +227,13 @@ export async function GET(request: Request) {
 
       return {
         sNo: index + 1,
-        regNo: stu.admissionNo || String(stu.rollNo),
+        // The "Reg. No" column of the official mark lists is the student's
+        // Exam No. (roll no) — on the Student Details Entry screen the school
+        // enters the first Exam No. and it auto-increments from there, so that
+        // number is the register number. The admission number is an internal
+        // auto-generated key (e.g. "EXAM-9-12420-3245") and must never leak
+        // into this column.
+        regNo: String(stu.rollNo),
         name: stu.name,
         gender: isMale ? "B" : "G",
         subjectScores,
