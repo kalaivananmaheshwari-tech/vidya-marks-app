@@ -53,6 +53,13 @@ export async function POST(request: Request) {
     if (existingUser) return json({ error: "This UDISE code is already in use." }, 409);
 
     const academicYear = str(body.academicYear) ?? DEFAULT_ACADEMIC_YEAR;
+    const phone = str(body.phone);
+    if (!phone || phone.replace(/\D/g, "").length < 10) {
+      return json(
+        { error: "A phone number (at least 10 digits) is required — it verifies admin password recovery." },
+        400,
+      );
+    }
 
     const [school] = await db
       .insert(schools)
@@ -77,7 +84,7 @@ export async function POST(request: Request) {
         role: "admin",
         designation: str(body.designation) ?? "Principal / Headmaster",
         email: str(body.email) ?? null,
-        phone: str(body.phone) ?? null,
+        phone,
       })
       .returning();
 
