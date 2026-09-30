@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { db, dbMode } from "@/db";
+import { db } from "@/db";
 import { ensureSchema } from "@/db/bootstrap";
 import { ensureSeed } from "@/db/seed";
 
@@ -21,13 +21,7 @@ export async function GET() {
     );
     const schools = Number((result.rows as Array<{ count: string }>)[0]?.count ?? "0");
 
-    return Response.json({
-      ok: true,
-      schools,
-      // `postgres` means data is durable; `pglite` is the embedded dev fallback.
-      database: dbMode,
-      persistent: dbMode === "postgres",
-    });
+    return Response.json({ ok: true, schools });
   } catch (error) {
     return Response.json(
       { ok: false, error: error instanceof Error ? error.message : "unavailable" },

@@ -25,7 +25,7 @@ const DEFAULT_SUBJECTS_6_TO_10 = [
   { name: "Science", code: "SCI", hasPractical: true },
   { name: "Social Science", code: "SOC", hasPractical: false },
   { name: "PET", code: "PET", hasPractical: false },
-  { name: "TNSPARK", code: "TNP", hasPractical: false },
+  { name: "TNSMART", code: "TNS", hasPractical: false },
   { name: "Science Tamil", code: "SCT", hasPractical: true },
 ];
 
@@ -158,7 +158,7 @@ export async function POST(request: Request) {
         }
       }
     } else {
-      // 6 to 10: Sets to Default Language, English, Mathematics, Science, Social Science, PET, TNSPARK, Science Tamil
+      // 6 to 10: Sets to Default Language, English, Mathematics, Science, Social Science, PET, TNSMART, Science Tamil
       for (const defSub of DEFAULT_SUBJECTS_6_TO_10) {
         const subCode = `C${cls.id}-${defSub.code}`;
         const theoryMarks = defSub.hasPractical ? 70 : 90;

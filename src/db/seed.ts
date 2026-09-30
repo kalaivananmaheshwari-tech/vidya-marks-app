@@ -221,7 +221,7 @@ export async function runSeed(force = false): Promise<SeedResult> {
         { schoolId, code: "SCI-G", name: "Science", groupId: g.GEN, hasPractical: true, theoryMarks: 70, practicalMarks: 20, internalMarks: 10, teacherId: teacherId(2) },
         { schoolId, code: "SOC-G", name: "Social Science", groupId: g.GEN, hasPractical: false, theoryMarks: 90, practicalMarks: 0, internalMarks: 10, teacherId: teacherId(5) },
         { schoolId, code: "PET-G", name: "PET", groupId: g.GEN, hasPractical: false, theoryMarks: 90, practicalMarks: 0, internalMarks: 10, teacherId: teacherId(1) },
-        { schoolId, code: "TNS-G", name: "TNSPARK", groupId: g.GEN, hasPractical: false, theoryMarks: 90, practicalMarks: 0, internalMarks: 10, teacherId: teacherId(4) },
+        { schoolId, code: "TNS-G", name: "TNSMART", groupId: g.GEN, hasPractical: false, theoryMarks: 90, practicalMarks: 0, internalMarks: 10, teacherId: teacherId(4) },
         { schoolId, code: "SCT-G", name: "Science Tamil", groupId: g.GEN, hasPractical: true, theoryMarks: 70, practicalMarks: 20, internalMarks: 10, teacherId: teacherId(4) },
         // Higher Secondary (Group 2502)
         { schoolId, code: "PHY-1", name: "Physics", groupId: g["2502"], hasPractical: true, theoryMarks: 70, practicalMarks: 20, internalMarks: 10, teacherId: teacherId(2) },

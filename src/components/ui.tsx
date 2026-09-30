@@ -6,13 +6,13 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
 } from "react";
+import { createPortal } from "react-dom";
 import { classNames } from "@/lib/client";
 
 /* ------------------------------- Containers ------------------------------ */
@@ -270,19 +270,6 @@ export function Modal({
   footer?: ReactNode;
   width?: string;
 }) {
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const isDraggingRef = useRef(false);
-  const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0 });
-
-  // Reset position whenever modal opens or closes
-  useEffect(() => {
-    if (open) {
-      setPosition({ x: 0, y: 0 });
-      setIsDragging(false);
-    }
-  }, [open]);
-
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
@@ -296,122 +283,45 @@ export function Modal({
     };
   }, [open, onClose]);
 
-  const handleStartDrag = (clientX: number, clientY: number) => {
-    isDraggingRef.current = true;
-    setIsDragging(true);
-    dragStartRef.current = {
-      mouseX: clientX,
-      mouseY: clientY,
-      posX: position.x,
-      posY: position.y,
-    };
+  // Render the window in a portal on <body> so that `fixed inset-0` is measured
+  // against the viewport. Any ancestor carrying a transform (the app shell wraps
+  // page content in `.animate-fade-up`, whose `animation-fill-mode: both` keeps a
+  // `translateY(0)` transform applied) becomes the containing block for fixed
+  // descendants — which would otherwise leave this child window centred on the
+  // scrolling content column instead of the centre of the screen.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDraggingRef.current) return;
-      const dx = e.clientX - dragStartRef.current.mouseX;
-      const dy = e.clientY - dragStartRef.current.mouseY;
-      setPosition({
-        x: dragStartRef.current.posX + dx,
-        y: dragStartRef.current.posY + dy,
-      });
-    };
+  if (!open || !mounted) return null;
 
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!isDraggingRef.current || !e.touches[0]) return;
-      const dx = e.touches[0].clientX - dragStartRef.current.mouseX;
-      const dy = e.touches[0].clientY - dragStartRef.current.mouseY;
-      setPosition({
-        x: dragStartRef.current.posX + dx,
-        y: dragStartRef.current.posY + dy,
-      });
-    };
-
-    const handleEndDrag = () => {
-      isDraggingRef.current = false;
-      setIsDragging(false);
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleEndDrag);
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("touchend", handleEndDrag);
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleEndDrag);
-    window.addEventListener("touchmove", handleTouchMove, { passive: true });
-    window.addEventListener("touchend", handleEndDrag);
-  };
-
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-hidden">
-      {/* Backdrop overlay */}
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-slate-900/40 p-0 backdrop-blur-sm sm:items-center sm:p-6">
       <div
-        className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* Movable window container */}
-      <div
-        style={{
-          transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
-          transition: isDragging ? "none" : "transform 0.05s ease-out",
-        }}
         className={classNames(
-          "relative z-10 flex flex-col max-h-[88vh] w-full rounded-2xl bg-white shadow-2xl border border-slate-200/90 overflow-hidden",
+          "animate-pop w-full rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl",
           width,
         )}
       >
-        {/* Draggable header */}
-        <div
-          onMouseDown={(e) => {
-            if ((e.target as HTMLElement).closest("button")) return;
-            handleStartDrag(e.clientX, e.clientY);
-          }}
-          onTouchStart={(e) => {
-            if ((e.target as HTMLElement).closest("button")) return;
-            if (e.touches[0]) handleStartDrag(e.touches[0].clientX, e.touches[0].clientY);
-          }}
-          onDoubleClick={() => setPosition({ x: 0, y: 0 })}
-          className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/80 px-5 py-3.5 select-none cursor-grab active:cursor-grabbing"
-          title="Click and drag to move window (Double-click to re-center)"
-        >
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-slate-400 text-xs font-mono select-none" aria-hidden="true">
-                ⋮⋮
-              </span>
-              <h2 className="text-base font-semibold text-slate-900 truncate">{title}</h2>
-              <span className="hidden sm:inline-block rounded bg-slate-200/70 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
-                Movable Window
-              </span>
-            </div>
-            {description ? <p className="mt-0.5 text-xs text-slate-500 truncate">{description}</p> : null}
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+            {description ? <p className="mt-0.5 text-xs text-slate-500">{description}</p> : null}
           </div>
-
           <button
             onClick={onClose}
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 cursor-pointer"
+            className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
             aria-label="Close"
           >
             ✕
           </button>
         </div>
-
-        {/* Modal scrollable body */}
-        <div className="scroll-thin flex-1 overflow-y-auto px-5 py-4">{children}</div>
-
-        {/* Modal footer */}
+        <div className="scroll-thin max-h-[70vh] overflow-y-auto px-5 py-4">{children}</div>
         {footer ? (
-          <div className="flex-shrink-0 flex justify-end gap-2 border-t border-slate-100 bg-slate-50/50 px-5 py-3">
-            {footer}
-          </div>
+          <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">{footer}</div>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

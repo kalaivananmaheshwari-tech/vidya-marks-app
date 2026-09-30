@@ -6,6 +6,27 @@ import { useState } from "react";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { apiRequest } from "@/lib/client";
 
+const DEMO_ACCOUNTS = [
+  {
+    role: "School admin · Principal / Headmaster",
+    name: "Dr. Meera Krishnan",
+    username: "33064500112",
+    password: "admin@123",
+    hint: "Logs in with the school UDISE code",
+    icon: "🏛️",
+    tone: "from-brand-500 to-violet-500",
+  },
+  {
+    role: "Teacher · created by the admin",
+    name: "Ramesh Iyer",
+    username: "33064500112.ramesh",
+    password: "teacher@123",
+    hint: "Logs in with an admin-issued username",
+    icon: "🧑‍🏫",
+    tone: "from-emerald-500 to-teal-500",
+  },
+];
+
 export default function LoginForm() {
   const router = useRouter();
   const [username, setUsername] = useState("");
@@ -93,14 +114,40 @@ export default function LoginForm() {
           </Link>
         </div>
 
-        <p className="mt-5 text-center">
-          <Link
-            href="/register?mode=recover"
-            className="text-sm font-semibold text-brand-600 transition hover:text-brand-700 hover:underline"
-          >
-            Forget Password or Change Admin Details →
-          </Link>
-        </p>
+        <div className="mt-7">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Or explore the demo school
+          </p>
+          <div className="mt-3 space-y-2">
+            {DEMO_ACCOUNTS.map((account) => (
+              <button
+                key={account.username}
+                type="button"
+                onClick={() => {
+                  setUsername(account.username);
+                  setPassword(account.password);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left transition hover:border-brand-300 hover:bg-brand-50/50"
+              >
+                <span
+                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gradient-to-br ${account.tone} text-base text-white`}
+                >
+                  {account.icon}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-slate-800">
+                    {account.name}
+                  </span>
+                  <span className="block truncate text-xs text-slate-500">{account.role}</span>
+                  <span className="mt-0.5 block truncate font-mono text-[10px] text-slate-400">
+                    {account.username} · {account.password}
+                  </span>
+                </span>
+                <span className="text-xs font-medium text-brand-600">Use</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </Card>
     </div>
   );

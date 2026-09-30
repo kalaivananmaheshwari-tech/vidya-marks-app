@@ -6,7 +6,6 @@ import { useMemo, useState } from "react";
 import { Button, Card, Field, Input, Select } from "@/components/ui";
 import { apiRequest } from "@/lib/client";
 import { ACADEMIC_YEARS, DEFAULT_ACADEMIC_YEAR } from "@/lib/academic";
-import RecoverForm from "./recover-form";
 
 const STATES = [
   "Andhra Pradesh", "Assam", "Bihar", "Chhattisgarh", "Delhi", "Goa", "Gujarat", "Haryana",
@@ -15,11 +14,8 @@ const STATES = [
   "West Bengal", "Other",
 ];
 
-export type RegisterMode = "register" | "recover";
-
-export default function RegisterForm({ initialMode = "register" }: { initialMode?: RegisterMode }) {
+export default function RegisterForm() {
   const router = useRouter();
-  const [mode, setMode] = useState<RegisterMode>(initialMode);
   const [form, setForm] = useState({
     schoolName: "",
     udiseCode: "",
@@ -84,41 +80,10 @@ export default function RegisterForm({ initialMode = "register" }: { initialMode
         </span>
         <div>
           <p className="text-lg font-semibold tracking-tight text-slate-900">Vidya Analytics</p>
-          <p className="text-xs text-slate-500">
-            {mode === "recover" ? "Admin account recovery" : "Register your school"}
-          </p>
+          <p className="text-xs text-slate-500">Register your school</p>
         </div>
       </div>
 
-      {/* Mode switch: register a new school, or recover / change the admin account */}
-      <div className="mb-5 grid grid-cols-2 gap-1.5 rounded-2xl border border-slate-100 bg-slate-50/60 p-1.5">
-        <button
-          type="button"
-          onClick={() => setMode("register")}
-          className={`rounded-xl px-3 py-2 text-xs font-semibold transition sm:text-sm ${
-            mode === "register"
-              ? "bg-white text-brand-700 shadow-sm ring-1 ring-brand-100"
-              : "text-slate-500 hover:text-slate-700"
-          }`}
-        >
-          🏫 Register new school
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("recover")}
-          className={`rounded-xl px-3 py-2 text-xs font-semibold transition sm:text-sm ${
-            mode === "recover"
-              ? "bg-white text-brand-700 shadow-sm ring-1 ring-brand-100"
-              : "text-slate-500 hover:text-slate-700"
-          }`}
-        >
-          🔑 Forgot password / change admin
-        </button>
-      </div>
-
-      {mode === "recover" ? (
-        <RecoverForm />
-      ) : (
       <Card className="p-6 sm:p-8">
         <h2 className="text-xl font-semibold tracking-tight text-slate-900">Register your school</h2>
         <p className="mt-1 text-sm text-slate-500">
@@ -246,16 +211,11 @@ export default function RegisterForm({ initialMode = "register" }: { initialMode
                   placeholder="office@school.edu"
                 />
               </Field>
-              <Field
-                label="Phone"
-                hint="Required — used to verify your identity if the password is forgotten or the admin changes."
-              >
+              <Field label="Phone (optional)">
                 <Input
                   value={form.phone}
                   onChange={(e) => set("phone", e.target.value)}
                   placeholder="+91 98400 00000"
-                  inputMode="tel"
-                  required
                 />
               </Field>
             </div>
@@ -337,7 +297,6 @@ export default function RegisterForm({ initialMode = "register" }: { initialMode
           </p>
         </form>
       </Card>
-      )}
     </div>
   );
 }

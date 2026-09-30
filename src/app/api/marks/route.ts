@@ -1,6 +1,6 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { marks, students, subjects } from "@/db/schema";
+import { marks, students } from "@/db/schema";
 import { handleError, json, numParam, requireAuth } from "@/lib/api";
 import { subjectsForClass } from "@/lib/queries";
 
@@ -67,23 +67,6 @@ export async function PUT(request: Request) {
       .where(eq(students.schoolId, user.schoolId));
     const ownedIds = new Set(owned.map((s) => s.id));
 
-    const [subMeta] = await db
-      .select({
-        id: subjects.id,
-        theoryMarks: subjects.theoryMarks,
-        practicalMarks: subjects.practicalMarks,
-        internalMarks: subjects.internalMarks,
-        maxMarks: subjects.maxMarks,
-      })
-      .from(subjects)
-      .where(and(eq(subjects.id, subjectId), eq(subjects.schoolId, user.schoolId)))
-      .limit(1);
-
-    const tMax = subMeta?.theoryMarks ?? 100;
-    const pMax = subMeta?.practicalMarks ?? 0;
-    const iMax = subMeta?.internalMarks ?? 10;
-    const totMax = subMeta?.maxMarks ?? 100;
-
     const values = entries
       .map(
         (entry: {
@@ -120,21 +103,16 @@ export async function PUT(request: Request) {
             return Number.isFinite(n) ? n : null;
           };
 
-          const rawTheory = parseNum(entry.theoryScore);
-          const rawPractical = parseNum(entry.practicalScore);
-          const rawInternal = parseNum(entry.internalScore);
-
-          const theoryScore = rawTheory !== null ? Math.min(Math.max(0, rawTheory), tMax) : null;
-          const practicalScore = rawPractical !== null ? Math.min(Math.max(0, rawPractical), pMax) : null;
-          const internalScore = rawInternal !== null ? Math.min(Math.max(0, rawInternal), iMax) : null;
+          const theoryScore = parseNum(entry.theoryScore);
+          const practicalScore = parseNum(entry.practicalScore);
+          const internalScore = parseNum(entry.internalScore);
 
           // If breakdown was provided, total = sum of components
           let score: number | null = null;
           if (theoryScore !== null || practicalScore !== null || internalScore !== null) {
             score = (theoryScore ?? 0) + (practicalScore ?? 0) + (internalScore ?? 0);
           } else {
-            const rawScore = parseNum(entry.score);
-            score = rawScore !== null ? Math.min(Math.max(0, rawScore), totMax) : null;
+            score = parseNum(entry.score);
           }
 
           return {

@@ -199,38 +199,6 @@ export default function MarkEntryPage() {
     });
   }
 
-  function handleScoreInput(
-    studentId: number,
-    field: "theoryScore" | "practicalScore" | "internalScore",
-    rawVal: string,
-    maxLimit: number,
-    fieldTitle: string,
-    inputEl?: HTMLInputElement,
-  ) {
-    if (rawVal === "") {
-      setDraft(studentId, { [field]: "" });
-      return;
-    }
-    const n = Number(rawVal);
-    if (isNaN(n)) return;
-    if (n < 0) {
-      if (inputEl) inputEl.value = "0";
-      setDraft(studentId, { [field]: "0" });
-      return;
-    }
-    if (n > maxLimit) {
-      toast.push(`Mark cannot exceed assigned ${fieldTitle} limit of ${maxLimit}`, "error");
-      // Wipe the rejected value from the screen immediately. The DOM node is
-      // cleared directly because React skips re-rendering when the state value
-      // is unchanged (e.g. the field was already empty), which would otherwise
-      // leave the out-of-range number visible in the input.
-      if (inputEl) inputEl.value = "";
-      setDraft(studentId, { [field]: "" });
-      return;
-    }
-    setDraft(studentId, { [field]: rawVal });
-  }
-
   async function saveAll() {
     if (!examId || !subjectId) return;
     setSaving(true);
@@ -313,8 +281,8 @@ export default function MarkEntryPage() {
     <>
       <PageHeader
         icon="✍️"
-        title="Class wise and subject wise mark Entry"
-        subtitle="Select class, subject and examination to record theory, practical and internal marks within assigned maximums"
+        title="Mark entry"
+        subtitle="Record theory, practical and internal marks according to subject allocation"
         actions={
           <div className="flex items-center gap-2">
             <Link href={`/mark-assign?classId=${classId}`}>
@@ -435,7 +403,7 @@ export default function MarkEntryPage() {
               <table className="w-full min-w-[700px] text-sm">
                 <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th className="px-5 py-3 font-semibold">Exam No.</th>
+                    <th className="px-5 py-3 font-semibold">Roll</th>
                     <th className="px-3 py-3 font-semibold">Student</th>
                     <th className="px-3 py-3 font-semibold">Theory (/{theoryMax})</th>
                     {hasPractical ? (
@@ -460,7 +428,7 @@ export default function MarkEntryPage() {
 
                     return (
                       <tr key={row.studentId} className="transition hover:bg-slate-50/60">
-                        <td className="px-5 py-2.5 tabular-nums text-slate-400 font-semibold">{row.rollNo}</td>
+                        <td className="px-5 py-2.5 tabular-nums text-slate-400">{row.rollNo}</td>
                         <td className="px-3 py-2.5">
                           <p className="font-medium text-slate-800">{row.name}</p>
                           <p className="font-mono text-[10px] text-slate-400">{row.admissionNo}</p>
@@ -479,16 +447,7 @@ export default function MarkEntryPage() {
                             min={0}
                             max={theoryMax}
                             onKeyDown={(e) => handleKeyDown(e, index * 3)}
-                            onChange={(e) =>
-                              handleScoreInput(
-                                row.studentId,
-                                "theoryScore",
-                                e.target.value,
-                                theoryMax,
-                                "Theory",
-                                e.currentTarget,
-                              )
-                            }
+                            onChange={(e) => setDraft(row.studentId, { theoryScore: e.target.value })}
                             className="w-20 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm font-semibold tabular-nums text-slate-800 shadow-sm transition focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100 disabled:bg-slate-100"
                             placeholder={`0-${theoryMax}`}
                           />
@@ -508,15 +467,7 @@ export default function MarkEntryPage() {
                               min={0}
                               max={practicalMax}
                               onKeyDown={(e) => handleKeyDown(e, index * 3 + 1)}
-                              onChange={(e) =>
-                                handleScoreInput(
-                                  row.studentId,
-                                  "practicalScore",
-                                  e.target.value,
-                                  practicalMax,
-                                  "Practical",
-                                )
-                              }
+                              onChange={(e) => setDraft(row.studentId, { practicalScore: e.target.value })}
                               className="w-20 rounded-lg border border-emerald-200 bg-emerald-50/30 px-2.5 py-1.5 text-sm font-semibold tabular-nums text-emerald-900 shadow-sm transition focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-100"
                               placeholder={`0-${practicalMax}`}
                             />
@@ -536,15 +487,7 @@ export default function MarkEntryPage() {
                             min={0}
                             max={internalMax}
                             onKeyDown={(e) => handleKeyDown(e, index * 3 + 2)}
-                            onChange={(e) =>
-                              handleScoreInput(
-                                row.studentId,
-                                "internalScore",
-                                e.target.value,
-                                internalMax,
-                                "Internal",
-                              )
-                            }
+                            onChange={(e) => setDraft(row.studentId, { internalScore: e.target.value })}
                             className="w-20 rounded-lg border border-violet-200 bg-violet-50/30 px-2.5 py-1.5 text-sm font-semibold tabular-nums text-violet-900 shadow-sm transition focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100 disabled:bg-slate-100"
                             placeholder={`0-${internalMax}`}
                           />

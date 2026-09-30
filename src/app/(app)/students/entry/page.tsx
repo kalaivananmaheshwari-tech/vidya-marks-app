@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Badge,
   Button,
@@ -11,14 +11,12 @@ import {
   Field,
   GradePill,
   Input,
-  Modal,
   PageHeader,
   Select,
   TableSkeleton,
   useToast,
 } from "@/components/ui";
 import { apiRequest, useApi } from "@/lib/client";
-import { gradeFor } from "@/lib/grades";
 
 type ClassItem = {
   id: number;
@@ -55,7 +53,7 @@ type SubjectItem = {
 
 type StudentListItem = {
   id: number;
-  rollNo: number; // Used as Exam No.
+  rollNo: number;
   admissionNo: string;
   name: string;
   gender: string;
@@ -127,22 +125,20 @@ export default function StudentEntryPage() {
   const [studentId, setStudentId] = useState<string>("");
   const [examId, setExamId] = useState<string>("");
 
-  // Track the highest or most recently entered Exam No. per class to allow automatic incrementing
-  const [lastExamNoByClass, setLastExamNoByClass] = useState<Record<string, number>>({});
-
-  // Student details form: Only Name, Exam No. (Roll No.), and Gender (no admission no, guardian, phone, dob)
+  // Student details form
   const [studentForm, setStudentForm] = useState({
     name: "",
-    rollNo: "", // Exam No.
+    rollNo: "",
+    admissionNo: "",
     gender: "Female",
+    guardianName: "",
+    contact: "",
+    dob: "",
   });
 
   // Marks inputs: subjectId -> MarkDraft
   const [marksDrafts, setMarksDrafts] = useState<Record<number, MarkDraft>>({});
   const [saving, setSaving] = useState(false);
-
-  // Modal report state
-  const [showReportModal, setShowReportModal] = useState(false);
 
   // Read initial query params from URL
   useEffect(() => {
@@ -188,6 +184,7 @@ export default function StudentEntryPage() {
   useEffect(() => {
     if (data?.students) {
       if (data.students.length > 0 && studentMode === "existing") {
+        // pick first student if not selected or invalid
         if (!studentId || !data.students.some((s) => String(s.id) === studentId)) {
           setStudentId(String(data.students[0].id));
         }
@@ -198,35 +195,31 @@ export default function StudentEntryPage() {
     }
   }, [data?.students, studentId, studentMode]);
 
-  // Auto-calculate the next Exam No. for this class & section
-  const nextAutoExamNo = useMemo(() => {
-    const studentsInClass = data?.students ?? [];
-    const validNos = studentsInClass
-      .map((s) => Number(s.rollNo))
-      .filter((n) => !isNaN(n) && n > 0);
-    const maxInClass = validNos.length > 0 ? Math.max(...validNos) : 0;
-    const lastSaved = classId ? lastExamNoByClass[classId] ?? 0 : 0;
-    const peak = Math.max(maxInClass, lastSaved);
-    return peak > 0 ? String(peak + 1) : "";
-  }, [data?.students, classId, lastExamNoByClass]);
-
-  // When selected student or studentMode changes, update studentForm
+  // When selected student changes, populate student form
   useEffect(() => {
     if (studentMode === "existing" && data?.selectedStudent) {
       const s = data.selectedStudent;
       setStudentForm({
         name: s.name,
         rollNo: String(s.rollNo),
+        admissionNo: s.admissionNo,
         gender: s.gender,
+        guardianName: s.guardianName ?? "",
+        contact: s.contact ?? "",
+        dob: s.dob ?? "",
       });
     } else if (studentMode === "new") {
-      setStudentForm((prev) => ({
+      setStudentForm({
         name: "",
-        rollNo: nextAutoExamNo || prev.rollNo || "",
+        rollNo: "",
+        admissionNo: "",
         gender: "Female",
-      }));
+        guardianName: "",
+        contact: "",
+        dob: "",
+      });
     }
-  }, [data?.selectedStudent, studentMode, nextAutoExamNo]);
+  }, [data?.selectedStudent, studentMode]);
 
   // Populate marks draft from currentExamMarks (if previously entered)
   useEffect(() => {
@@ -278,39 +271,6 @@ export default function StudentEntryPage() {
     });
   }
 
-  // Restrict mark input: the user cannot input greater than the assigned marks
-  function handleScoreChange(
-    subId: number,
-    field: "theoryScore" | "practicalScore" | "internalScore",
-    rawVal: string,
-    maxLimit: number,
-    fieldTitle: string,
-    inputEl?: HTMLInputElement,
-  ) {
-    if (rawVal === "") {
-      setDraft(subId, { [field]: "" });
-      return;
-    }
-    const num = Number(rawVal);
-    if (isNaN(num)) return;
-    if (num < 0) {
-      if (inputEl) inputEl.value = "0";
-      setDraft(subId, { [field]: "0" });
-      return;
-    }
-    if (num > maxLimit) {
-      toast.push(`Mark cannot exceed assigned ${fieldTitle} maximum (${maxLimit})`, "error");
-      // Wipe the rejected value from the screen immediately. The DOM node is
-      // cleared directly because React skips re-rendering when the state value
-      // is unchanged (e.g. the field was already empty), which would otherwise
-      // leave the out-of-range number visible in the input.
-      if (inputEl) inputEl.value = "";
-      setDraft(subId, { [field]: "" });
-      return;
-    }
-    setDraft(subId, { [field]: rawVal });
-  }
-
   function getDraftTotal(d?: MarkDraft): number | null {
     if (!d || d.isAbsent) return null;
     const t = d.theoryScore !== "" ? Number(d.theoryScore) : null;
@@ -341,23 +301,14 @@ export default function StudentEntryPage() {
           isAbsent: false,
         };
 
-        const parseAndClamp = (v: string, limit: number) => {
-          if (v === "") return null;
-          const n = Number(v);
-          if (isNaN(n)) return null;
-          return Math.min(Math.max(0, n), limit);
-        };
-
         return {
           subjectId: sub.id,
-          theoryScore: d.isAbsent ? null : parseAndClamp(d.theoryScore, sub.theoryMarks),
-          practicalScore: d.isAbsent ? null : parseAndClamp(d.practicalScore, sub.practicalMarks),
-          internalScore: d.isAbsent ? null : parseAndClamp(d.internalScore, sub.internalMarks),
+          theoryScore: d.theoryScore !== "" ? Number(d.theoryScore) : null,
+          practicalScore: d.practicalScore !== "" ? Number(d.practicalScore) : null,
+          internalScore: d.internalScore !== "" ? Number(d.internalScore) : null,
           isAbsent: d.isAbsent,
         };
       });
-
-      const enteredExamNo = studentForm.rollNo ? Number(studentForm.rollNo) : null;
 
       const res = await apiRequest<{ student: StudentListItem; savedMarksCount: number }>(
         "/api/student-entry",
@@ -366,22 +317,18 @@ export default function StudentEntryPage() {
           body: JSON.stringify({
             classId: Number(classId),
             studentId: studentMode === "existing" && studentId ? Number(studentId) : null,
-            name: studentForm.name.trim(),
-            rollNo: enteredExamNo,
+            name: studentForm.name,
+            rollNo: studentForm.rollNo ? Number(studentForm.rollNo) : null,
+            admissionNo: studentForm.admissionNo || null,
             gender: studentForm.gender,
+            guardianName: studentForm.guardianName || null,
+            contact: studentForm.contact || null,
+            dob: studentForm.dob || null,
             examId: examId ? Number(examId) : null,
             marks: examId ? marksPayload : [],
           }),
         },
       );
-
-      // Track last saved Exam No for this class so next student increments automatically
-      if (enteredExamNo) {
-        setLastExamNoByClass((prev) => ({
-          ...prev,
-          [classId]: enteredExamNo,
-        }));
-      }
 
       toast.push(
         `Saved details and ${res.savedMarksCount} marks for ${res.student.name}`,
@@ -400,39 +347,17 @@ export default function StudentEntryPage() {
     }
   }
 
-  // Switch to new student entry and prefill next auto-incremented Exam No
-  function switchToNewStudent() {
-    setStudentMode("new");
-    setStudentId("");
-    const nextNo = nextAutoExamNo;
-    setStudentForm({
-      name: "",
-      rollNo: nextNo,
-      gender: "Female",
-    });
-  }
-
   return (
     <>
       <PageHeader
         icon="📝"
         title="Student Entry & Marks"
-        subtitle="Select class, section & exam. Auto-incremented Exam No., auto-assigned subjects, multi-exam report and restricted mark entry."
+        subtitle="Select class, section & group code (11 & 12 only). Subjects are automatically assigned with mark allotments. Enter student details and examination marks."
         actions={
           <div className="flex items-center gap-2">
-            {previousExams.length > 0 ? (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowReportModal(true)}
-                className="border-violet-300 bg-violet-50 text-violet-900 hover:bg-violet-100"
-              >
-                📊 Click Report (Table Format)
-              </Button>
-            ) : null}
             <Link href="/students">
               <Button variant="secondary" size="sm">
-                🎓 Students Register
+                🎓 Student Register
               </Button>
             </Link>
             <Button onClick={handleSaveAll} loading={saving}>
@@ -488,7 +413,7 @@ export default function StudentEntryPage() {
                 <span className="rounded-xl border border-sky-300 bg-sky-50 px-3 py-2 font-mono text-sm font-bold text-sky-900 shadow-sm">
                   {selectedClass?.groupCode || "No Group Code"}
                 </span>
-                <span className="text-xs font-medium text-slate-600 truncate">
+                <span className="text-xs font-medium text-slate-600">
                   {selectedClass?.groupName || selectedClass?.stream || "Assigned Stream"}
                 </span>
               </div>
@@ -523,7 +448,7 @@ export default function StudentEntryPage() {
             </h2>
             <p className="text-xs text-slate-500">
               Assigned automatically for {selectedClass ? `${selectedClass.name} - ${selectedClass.section}` : "selected class"}.
-              Includes TNSPARK. Practical = Yes: Theory 70 + Practical 20 + Internal 10. Practical = No: Theory 90 + Internal 10.
+              Practical = Yes: Theory 70 + Practical 20 + Internal 10. Practical = No: Theory 90 + Internal 10.
             </p>
           </div>
           <Badge tone="green">{subjects.length} Subjects Assigned</Badge>
@@ -585,56 +510,46 @@ export default function StudentEntryPage() {
               3. Student Details Entry
             </h2>
             <p className="text-xs text-slate-500">
-              Pick an existing student by Exam No. OR admit a new student with auto-incremented Exam No.
+              Pick an existing student from this class to view previous exam details &amp; enter marks, OR admit a new student.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            {previousExams.length > 0 ? (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowReportModal(true)}
-                className="border-violet-300 bg-violet-50 text-violet-900 hover:bg-violet-100"
-              >
-                📊 Click Report
-              </Button>
-            ) : null}
-
-            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1">
-              <button
-                type="button"
-                onClick={() => setStudentMode("existing")}
-                className={`rounded-lg px-3 py-1 text-xs font-semibold transition cursor-pointer ${
-                  studentMode === "existing"
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                👤 Existing Student ({students.length})
-              </button>
-              <button
-                type="button"
-                onClick={switchToNewStudent}
-                className={`rounded-lg px-3 py-1 text-xs font-semibold transition cursor-pointer ${
-                  studentMode === "new"
-                    ? "bg-brand-600 text-white shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                ➕ New Student Entry
-              </button>
-            </div>
+          <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1">
+            <button
+              type="button"
+              onClick={() => setStudentMode("existing")}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold transition cursor-pointer ${
+                studentMode === "existing"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              👤 Existing Student ({students.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStudentMode("new");
+                setStudentId("");
+              }}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold transition cursor-pointer ${
+                studentMode === "new"
+                  ? "bg-brand-600 text-white shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              ➕ New Student Entry
+            </button>
           </div>
         </div>
 
         {studentMode === "existing" ? (
           <div className="mt-4">
-            <Field label="Choose Student from this class (by Exam No.)">
+            <Field label="Choose Student from this class">
               <Select value={studentId} onChange={(e) => setStudentId(e.target.value)}>
                 {students.map((s) => (
                   <option key={s.id} value={s.id}>
-                    Exam No. {s.rollNo}: {s.name}
+                    Roll {s.rollNo}: {s.name} ({s.admissionNo})
                   </option>
                 ))}
               </Select>
@@ -642,8 +557,8 @@ export default function StudentEntryPage() {
           </div>
         ) : null}
 
-        {/* Clean Student Inputs: Only Name, Exam No., and Gender */}
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        {/* Student Inputs */}
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Student Full Name">
             <Input
               value={studentForm.name}
@@ -652,27 +567,21 @@ export default function StudentEntryPage() {
               required
             />
           </Field>
-
-          <Field
-            label="Exam No."
-            hint={
-              studentMode === "new"
-                ? nextAutoExamNo
-                  ? `Auto-incremented from previous Exam No. in this class & section`
-                  : `Enter initial Exam No. (e.g. 1001). Next students will auto-increment.`
-                : "Student examination registration number"
-            }
-          >
+          <Field label="Roll No. (Auto or Custom)">
             <Input
               type="number"
               value={studentForm.rollNo}
               onChange={(e) => setStudentForm({ ...studentForm, rollNo: e.target.value })}
-              placeholder={nextAutoExamNo || "e.g. 1001"}
-              min={1}
-              required
+              placeholder="Auto"
             />
           </Field>
-
+          <Field label="Admission No. (Auto or Custom)">
+            <Input
+              value={studentForm.admissionNo}
+              onChange={(e) => setStudentForm({ ...studentForm, admissionNo: e.target.value })}
+              placeholder="Auto"
+            />
+          </Field>
           <Field label="Gender">
             <Select
               value={studentForm.gender}
@@ -685,222 +594,154 @@ export default function StudentEntryPage() {
           </Field>
         </div>
 
-        {studentMode === "new" ? (
-          <div className="mt-3 flex items-center justify-between rounded-xl bg-amber-50/70 border border-amber-200/80 px-4 py-2.5 text-xs text-amber-900">
-            <div className="flex items-center gap-2">
-              <span>💡</span>
-              <span>
-                <strong>Auto-increment feature:</strong> Enter the first Exam No. for student 1 in this class &amp; section. When you add the next student, the Exam No. automatically increments by 1.
-              </span>
-            </div>
-            {studentForm.rollNo ? (
-              <span className="font-semibold text-amber-800">
-                Next student will be #{Number(studentForm.rollNo) + 1}
-              </span>
-            ) : null}
-          </div>
-        ) : null}
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <Field label="Guardian Name">
+            <Input
+              value={studentForm.guardianName}
+              onChange={(e) => setStudentForm({ ...studentForm, guardianName: e.target.value })}
+              placeholder="Father / Mother name"
+            />
+          </Field>
+          <Field label="Contact Phone">
+            <Input
+              value={studentForm.contact}
+              onChange={(e) => setStudentForm({ ...studentForm, contact: e.target.value })}
+              placeholder="+91 98400 00000"
+            />
+          </Field>
+          <Field label="Date of Birth">
+            <Input
+              type="date"
+              value={studentForm.dob}
+              onChange={(e) => setStudentForm({ ...studentForm, dob: e.target.value })}
+            />
+          </Field>
+        </div>
       </Card>
 
-      {/* Step 4: EXAMINATION MARKS REPORT (TABLE FORMAT) */}
+      {/* Step 4: PREVIOUS EXAMINATIONS RECORD (If already entered, all details showed!) */}
       {studentMode === "existing" && studentId ? (
-        <Card className="border-violet-200 bg-gradient-to-br from-violet-50/30 via-white to-brand-50/20">
+        <Card className="border-violet-200 bg-gradient-to-br from-violet-50/40 via-white to-brand-50/30">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-violet-100 pb-3">
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-base">📊</span>
+                <span className="text-base">📋</span>
                 <h2 className="text-sm font-bold uppercase tracking-wide text-violet-950">
-                  Exam Marks Report (Multi-Exam Table Format)
+                  Previous Examination Record (All Showed)
                 </h2>
               </div>
               <p className="text-xs text-slate-600">
-                Exam marks shown in table format: first column Subjects, next columns divided into corresponding exams with Marks, % and Grade.
+                All examination marks previously entered for <strong>{studentForm.name || "this student"}</strong> are listed below:
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowReportModal(true)}
-                className="border-violet-300 bg-white text-violet-900 hover:bg-violet-50 shadow-sm"
-              >
-                🔍 Open in Movable Window
-              </Button>
-              <Badge tone="brand">
-                {previousExams.length} Exam{previousExams.length === 1 ? "" : "s"} on Record
-              </Badge>
-            </div>
+            <Badge tone="brand">
+              {previousExams.length} Previous Exam{previousExams.length === 1 ? "" : "s"} on Record
+            </Badge>
           </div>
 
           {previousExams.length === 0 ? (
             <div className="py-8 text-center">
               <p className="text-xs text-slate-400 italic">
-                No examination marks recorded yet for <strong>{studentForm.name || "this student"}</strong>. Enter marks below in Step 4 and click Save.
+                No marks entered in previous examinations yet for this student. Enter marks below to record their first exam.
               </p>
             </div>
           ) : (
-            <div className="mt-4">
-              {/* SIDE-BY-SIDE MULTI-EXAM TABLE */}
-              <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
-                <table className="w-full min-w-[720px] text-xs border-collapse">
-                  <thead>
-                    {/* Primary Header Row: Subjects & Exam Names */}
-                    <tr className="bg-slate-100/90 text-slate-800">
-                      <th
-                        rowSpan={2}
-                        className="border border-slate-200 px-4 py-2.5 text-left font-bold text-slate-900 bg-slate-100"
-                      >
-                        Subjects
-                      </th>
-                      {previousExams.map((pExam) => (
-                        <th
-                          key={pExam.examId}
-                          colSpan={3}
-                          className="border border-slate-200 px-3 py-2 text-center font-bold bg-violet-100/70 text-violet-950"
-                        >
-                          {pExam.examName} {pExam.month ? `(${pExam.month})` : ""}
-                        </th>
-                      ))}
-                    </tr>
-                    {/* Secondary Sub-columns: Marks, %, Grade */}
-                    <tr className="bg-slate-50 text-slate-600 font-semibold">
-                      {previousExams.map((pExam) => (
-                        <Fragment key={pExam.examId}>
-                          <th className="border border-slate-200 px-2 py-1.5 text-center">Marks</th>
-                          <th className="border border-slate-200 px-2 py-1.5 text-center">%</th>
-                          <th className="border border-slate-200 px-2 py-1.5 text-center">Grade</th>
-                        </Fragment>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white">
-                    {subjects.map((sub, idx) => (
-                      <tr key={sub.id} className="transition hover:bg-slate-50/70">
-                        <td className="border border-slate-200 px-4 py-2 font-medium text-slate-800">
-                          <span className="font-semibold text-slate-900">{idx + 1}. {sub.name}</span>{" "}
-                          <span className="font-mono text-[10px] text-slate-400">({sub.code})</span>
-                        </td>
-                        {previousExams.map((pExam) => {
-                          const m = pExam.marks.find((mk) => mk.subjectId === sub.id);
-                          if (!m) {
-                            return (
-                              <Fragment key={pExam.examId}>
-                                <td className="border border-slate-200 px-2 py-2 text-center text-slate-300">—</td>
-                                <td className="border border-slate-200 px-2 py-2 text-center text-slate-300">—</td>
-                                <td className="border border-slate-200 px-2 py-2 text-center text-slate-300">—</td>
-                              </Fragment>
-                            );
-                          }
-                          if (m.isAbsent) {
-                            return (
-                              <Fragment key={pExam.examId}>
-                                <td className="border border-slate-200 px-2 py-2 text-center font-bold text-rose-600">AB</td>
-                                <td className="border border-slate-200 px-2 py-2 text-center text-slate-400">—</td>
-                                <td className="border border-slate-200 px-2 py-2 text-center font-bold text-rose-600">AB</td>
-                              </Fragment>
-                            );
-                          }
+            <div className="mt-4 space-y-4">
+              {previousExams.map((pExam) => (
+                <div
+                  key={pExam.examId}
+                  className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-900 text-sm">
+                        🗓️ {pExam.examName}
+                      </span>
+                      {pExam.month || pExam.year ? (
+                        <span className="text-xs text-slate-500">
+                          ({pExam.month} {pExam.year})
+                        </span>
+                      ) : null}
+                    </div>
 
-                          const score = m.score ?? 0;
-                          const max = m.totalMax || 100;
-                          const pct = Math.round((score / max) * 100);
-                          const gr = gradeFor(pct).grade;
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-slate-600">
+                        Total: <strong className="text-slate-900 font-bold">{pExam.total}</strong> / {pExam.maxTotal}
+                      </span>
+                      <span className="font-bold text-sm text-brand-700 tabular-nums">
+                        {pExam.percentage}%
+                      </span>
+                      <GradePill grade={pExam.grade} />
+                      <Badge tone={pExam.passed ? "green" : "rose"}>
+                        {pExam.passed ? "Passed" : "Arrear(s)"}
+                      </Badge>
+                    </div>
+                  </div>
 
-                          return (
-                            <Fragment key={pExam.examId}>
-                              <td className="border border-slate-200 px-2 py-2 text-center font-semibold tabular-nums text-slate-800">
-                                {score}
-                              </td>
-                              <td className="border border-slate-200 px-2 py-2 text-center tabular-nums text-slate-600">
-                                {pct}%
-                              </td>
-                              <td className="border border-slate-200 px-2 py-2 text-center">
-                                <span
-                                  className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-bold ${
-                                    m.passed
-                                      ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                                      : "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
-                                  }`}
-                                >
-                                  {gr}
+                  {/* Subject breakdown table for this previous exam */}
+                  <div className="overflow-x-auto mt-2.5">
+                    <table className="w-full text-xs">
+                      <thead className="bg-slate-50 text-slate-500 uppercase font-semibold">
+                        <tr>
+                          <th className="px-3 py-1.5 text-left">Subject</th>
+                          <th className="px-2 py-1.5 text-center">Theory</th>
+                          <th className="px-2 py-1.5 text-center">Practical</th>
+                          <th className="px-2 py-1.5 text-center">Internal</th>
+                          <th className="px-2 py-1.5 text-center">Total (/100)</th>
+                          <th className="px-3 py-1.5 text-right">Result</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {pExam.marks.map((m) => (
+                          <tr key={m.subjectId} className="hover:bg-slate-50/50">
+                            <td className="px-3 py-1.5 font-medium text-slate-800">
+                              {m.subjectName}
+                              <span className="ml-1 text-[10px] text-slate-400">({m.subjectCode})</span>
+                            </td>
+                            <td className="px-2 py-1.5 text-center tabular-nums text-slate-700">
+                              {m.isAbsent ? "—" : (m.theoryScore ?? "—")}
+                              <span className="text-[10px] text-slate-400">/{m.theoryMax}</span>
+                            </td>
+                            <td className="px-2 py-1.5 text-center tabular-nums text-slate-700">
+                              {m.hasPractical ? (
+                                <>
+                                  {m.isAbsent ? "—" : (m.practicalScore ?? "—")}
+                                  <span className="text-[10px] text-slate-400">/{m.practicalMax}</span>
+                                </>
+                              ) : (
+                                <span className="text-slate-300">N/A</span>
+                              )}
+                            </td>
+                            <td className="px-2 py-1.5 text-center tabular-nums text-slate-700">
+                              {m.isAbsent ? "—" : (m.internalScore ?? "—")}
+                              <span className="text-[10px] text-slate-400">/{m.internalMax}</span>
+                            </td>
+                            <td className="px-2 py-1.5 text-center font-bold tabular-nums">
+                              {m.isAbsent ? (
+                                <Badge tone="rose">Absent</Badge>
+                              ) : (
+                                <span className={m.passed ? "text-slate-900" : "text-rose-600"}>
+                                  {m.score ?? 0}
                                 </span>
-                              </td>
-                            </Fragment>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="border-t-2 border-slate-300 bg-slate-50 font-bold text-slate-900">
-                    {/* Total Marks */}
-                    <tr>
-                      <td className="border border-slate-200 px-4 py-2 font-bold text-slate-900 bg-slate-100/60">
-                        Total Marks
-                      </td>
-                      {previousExams.map((pExam) => (
-                        <td
-                          key={pExam.examId}
-                          colSpan={3}
-                          className="border border-slate-200 px-2 py-2 text-center tabular-nums font-bold text-slate-900"
-                        >
-                          {pExam.total} / {pExam.maxTotal}
-                        </td>
-                      ))}
-                    </tr>
-
-                    {/* Percentage */}
-                    <tr>
-                      <td className="border border-slate-200 px-4 py-2 font-bold text-slate-900 bg-slate-100/60">
-                        Percentage (%)
-                      </td>
-                      {previousExams.map((pExam) => (
-                        <td
-                          key={pExam.examId}
-                          colSpan={3}
-                          className="border border-slate-200 px-2 py-2 text-center tabular-nums font-bold text-brand-700"
-                        >
-                          {pExam.percentage}%
-                        </td>
-                      ))}
-                    </tr>
-
-                    {/* Overall Grade */}
-                    <tr>
-                      <td className="border border-slate-200 px-4 py-2 font-bold text-slate-900 bg-slate-100/60">
-                        Overall Grade
-                      </td>
-                      {previousExams.map((pExam) => (
-                        <td
-                          key={pExam.examId}
-                          colSpan={3}
-                          className="border border-slate-200 px-2 py-2 text-center"
-                        >
-                          <GradePill grade={pExam.grade} />
-                        </td>
-                      ))}
-                    </tr>
-
-                    {/* Result */}
-                    <tr>
-                      <td className="border border-slate-200 px-4 py-2 font-bold text-slate-900 bg-slate-100/60">
-                        Result
-                      </td>
-                      {previousExams.map((pExam) => (
-                        <td
-                          key={pExam.examId}
-                          colSpan={3}
-                          className="border border-slate-200 px-2 py-2 text-center"
-                        >
-                          <Badge tone={pExam.passed ? "green" : "rose"}>
-                            {pExam.passed ? "Passed" : "Arrear(s)"}
-                          </Badge>
-                        </td>
-                      ))}
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+                              )}
+                            </td>
+                            <td className="px-3 py-1.5 text-right">
+                              {m.isAbsent ? (
+                                <Badge tone="rose">AB</Badge>
+                              ) : m.passed ? (
+                                <Badge tone="green">Pass</Badge>
+                              ) : (
+                                <Badge tone="rose">Fail</Badge>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </Card>
@@ -921,18 +762,13 @@ export default function StudentEntryPage() {
               )}
             </div>
             <p className="text-xs text-slate-500">
-              Exam: <strong>{data?.exams.find((e) => String(e.id) === examId)?.name || "Selected Examination"}</strong> · Student: <strong>{studentForm.name || "Selected Student"} (Exam No: {studentForm.rollNo || "—"})</strong>
+              Exam: <strong>{data?.exams.find((e) => String(e.id) === examId)?.name || "Selected Examination"}</strong> · Student: <strong>{studentForm.name || "Selected Student"}</strong>
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button onClick={switchToNewStudent} variant="secondary" size="sm">
-              ➕ Add Next Student
-            </Button>
-            <Button onClick={handleSaveAll} loading={saving} size="sm">
-              💾 Save Student &amp; Marks
-            </Button>
-          </div>
+          <Button onClick={handleSaveAll} loading={saving} size="sm">
+            💾 Save Student &amp; Marks
+          </Button>
         </div>
 
         {subjects.length === 0 ? (
@@ -949,9 +785,9 @@ export default function StudentEntryPage() {
               <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-100">
                 <tr>
                   <th className="px-5 py-3 font-semibold">Subject &amp; Mark Allotment</th>
-                  <th className="px-3 py-3 font-semibold">Theory (Max)</th>
-                  <th className="px-3 py-3 font-semibold text-emerald-800">Practical (Max)</th>
-                  <th className="px-3 py-3 font-semibold text-brand-800">Internal (Max)</th>
+                  <th className="px-3 py-3 font-semibold">Theory</th>
+                  <th className="px-3 py-3 font-semibold text-emerald-800">Practical</th>
+                  <th className="px-3 py-3 font-semibold text-brand-800">Internal</th>
                   <th className="px-3 py-3 font-semibold text-slate-900">Total (/100)</th>
                   <th className="px-3 py-3 text-center font-semibold">Absent</th>
                   <th className="px-5 py-3 text-right font-semibold">Status</th>
@@ -990,7 +826,7 @@ export default function StudentEntryPage() {
                         </div>
                       </td>
 
-                      {/* Theory input with strict upper bound validation */}
+                      {/* Theory input */}
                       <td className="px-3 py-3">
                         <input
                           type="number"
@@ -999,22 +835,13 @@ export default function StudentEntryPage() {
                           disabled={d.isAbsent}
                           min={0}
                           max={sub.theoryMarks}
-                          onChange={(e) =>
-                            handleScoreChange(
-                              sub.id,
-                              "theoryScore",
-                              e.target.value,
-                              sub.theoryMarks,
-                              "Theory",
-                              e.currentTarget,
-                            )
-                          }
-                          className="w-24 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm font-semibold tabular-nums text-slate-800 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100 disabled:bg-slate-100"
+                          onChange={(e) => setDraft(sub.id, { theoryScore: e.target.value })}
+                          className="w-20 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm font-semibold tabular-nums text-slate-800 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100 disabled:bg-slate-100"
                           placeholder={`0-${sub.theoryMarks}`}
                         />
                       </td>
 
-                      {/* Practical input (if hasPractical) with strict upper bound validation */}
+                      {/* Practical input (if hasPractical) */}
                       <td className="px-3 py-3">
                         {sub.hasPractical ? (
                           <input
@@ -1024,16 +851,8 @@ export default function StudentEntryPage() {
                             disabled={d.isAbsent}
                             min={0}
                             max={sub.practicalMarks}
-                            onChange={(e) =>
-                              handleScoreChange(
-                                sub.id,
-                                "practicalScore",
-                                e.target.value,
-                                sub.practicalMarks,
-                                "Practical",
-                              )
-                            }
-                            className="w-24 rounded-lg border border-emerald-200 bg-emerald-50/40 px-2.5 py-1.5 text-sm font-semibold tabular-nums text-emerald-900 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-100"
+                            onChange={(e) => setDraft(sub.id, { practicalScore: e.target.value })}
+                            className="w-20 rounded-lg border border-emerald-200 bg-emerald-50/40 px-2.5 py-1.5 text-sm font-semibold tabular-nums text-emerald-900 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-100"
                             placeholder={`0-${sub.practicalMarks}`}
                           />
                         ) : (
@@ -1041,7 +860,7 @@ export default function StudentEntryPage() {
                         )}
                       </td>
 
-                      {/* Internal input with strict upper bound validation */}
+                      {/* Internal input */}
                       <td className="px-3 py-3">
                         <input
                           type="number"
@@ -1050,16 +869,8 @@ export default function StudentEntryPage() {
                           disabled={d.isAbsent}
                           min={0}
                           max={sub.internalMarks}
-                          onChange={(e) =>
-                            handleScoreChange(
-                              sub.id,
-                              "internalScore",
-                              e.target.value,
-                              sub.internalMarks,
-                              "Internal",
-                            )
-                          }
-                          className="w-24 rounded-lg border border-violet-200 bg-violet-50/40 px-2.5 py-1.5 text-sm font-semibold tabular-nums text-violet-900 shadow-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100 disabled:bg-slate-100"
+                          onChange={(e) => setDraft(sub.id, { internalScore: e.target.value })}
+                          className="w-20 rounded-lg border border-violet-200 bg-violet-50/40 px-2.5 py-1.5 text-sm font-semibold tabular-nums text-violet-900 shadow-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100 disabled:bg-slate-100"
                           placeholder={`0-${sub.internalMarks}`}
                         />
                       </td>
@@ -1111,218 +922,15 @@ export default function StudentEntryPage() {
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-between border-t border-slate-100 px-5 py-3.5 bg-slate-50/40 gap-2">
+        <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3.5 bg-slate-50/40">
           <p className="text-xs text-slate-500">
-            Total out of 100 auto-sums in real time. Input cannot exceed assigned marks. Click Save to record.
+            Total out of 100 auto-sums in real time. Click Save to store both student details and examination marks.
           </p>
-          <div className="flex items-center gap-2">
-            <Button onClick={switchToNewStudent} variant="secondary" size="sm">
-              ➕ Add Next Student
-            </Button>
-            <Button onClick={handleSaveAll} loading={saving}>
-              💾 Save Student &amp; Marks
-            </Button>
-          </div>
+          <Button onClick={handleSaveAll} loading={saving}>
+            💾 Save Student &amp; Marks
+          </Button>
         </div>
       </Card>
-
-      {/* MOVABLE REPORT MODAL (When clicking "Click Report") */}
-      <Modal
-        open={showReportModal}
-        onClose={() => setShowReportModal(false)}
-        title={`Exam Marks Report — ${studentForm.name || "Student"} (Exam No: ${studentForm.rollNo || "—"})`}
-        description={`Class & Section: ${selectedClass?.name || ""} - ${selectedClass?.section || ""} | All Examinations Comparison Table`}
-        width="max-w-5xl"
-        footer={
-          <div className="flex items-center justify-between w-full">
-            <span className="text-xs text-slate-500">
-              Exam No: <strong>{studentForm.rollNo}</strong> · {studentForm.name}
-            </span>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  if (typeof window !== "undefined") window.print();
-                }}
-              >
-                🖨️ Print Report
-              </Button>
-              <Button onClick={() => setShowReportModal(false)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        }
-      >
-        <div className="space-y-4">
-          <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-3.5 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-base font-bold text-slate-900">{studentForm.name || "Student Name"}</p>
-              <p className="text-xs text-slate-600">
-                Exam No: <strong className="font-mono text-slate-900">{studentForm.rollNo}</strong> · Gender: <strong>{studentForm.gender}</strong> · Class: <strong>{selectedClass?.name} - {selectedClass?.section}</strong>
-              </p>
-            </div>
-            <Badge tone="brand">{previousExams.length} Examinations on Record</Badge>
-          </div>
-
-          {previousExams.length === 0 ? (
-            <p className="py-6 text-center text-xs text-slate-400 italic">
-              No examination marks recorded yet for this student.
-            </p>
-          ) : (
-            <div className="overflow-x-auto rounded-xl border border-slate-200">
-              <table className="w-full text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-100 text-slate-800">
-                    <th
-                      rowSpan={2}
-                      className="border border-slate-200 px-4 py-2.5 text-left font-bold text-slate-900 bg-slate-100"
-                    >
-                      Subjects
-                    </th>
-                    {previousExams.map((pExam) => (
-                      <th
-                        key={pExam.examId}
-                        colSpan={3}
-                        className="border border-slate-200 px-3 py-2 text-center font-bold bg-violet-100/70 text-violet-950"
-                      >
-                        {pExam.examName} {pExam.month ? `(${pExam.month})` : ""}
-                      </th>
-                    ))}
-                  </tr>
-                  <tr className="bg-slate-50 text-slate-600 font-semibold">
-                    {previousExams.map((pExam) => (
-                      <Fragment key={pExam.examId}>
-                        <th className="border border-slate-200 px-2 py-1.5 text-center">Marks</th>
-                        <th className="border border-slate-200 px-2 py-1.5 text-center">%</th>
-                        <th className="border border-slate-200 px-2 py-1.5 text-center">Grade</th>
-                      </Fragment>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {subjects.map((sub, idx) => (
-                    <tr key={sub.id} className="transition hover:bg-slate-50/70">
-                      <td className="border border-slate-200 px-4 py-2 font-medium text-slate-800">
-                        <span className="font-semibold text-slate-900">{idx + 1}. {sub.name}</span>{" "}
-                        <span className="font-mono text-[10px] text-slate-400">({sub.code})</span>
-                      </td>
-                      {previousExams.map((pExam) => {
-                        const m = pExam.marks.find((mk) => mk.subjectId === sub.id);
-                        if (!m) {
-                          return (
-                            <Fragment key={pExam.examId}>
-                              <td className="border border-slate-200 px-2 py-2 text-center text-slate-300">—</td>
-                              <td className="border border-slate-200 px-2 py-2 text-center text-slate-300">—</td>
-                              <td className="border border-slate-200 px-2 py-2 text-center text-slate-300">—</td>
-                            </Fragment>
-                          );
-                        }
-                        if (m.isAbsent) {
-                          return (
-                            <Fragment key={pExam.examId}>
-                              <td className="border border-slate-200 px-2 py-2 text-center font-bold text-rose-600">AB</td>
-                              <td className="border border-slate-200 px-2 py-2 text-center text-slate-400">—</td>
-                              <td className="border border-slate-200 px-2 py-2 text-center font-bold text-rose-600">AB</td>
-                            </Fragment>
-                          );
-                        }
-
-                        const score = m.score ?? 0;
-                        const max = m.totalMax || 100;
-                        const pct = Math.round((score / max) * 100);
-                        const gr = gradeFor(pct).grade;
-
-                        return (
-                          <Fragment key={pExam.examId}>
-                            <td className="border border-slate-200 px-2 py-2 text-center font-semibold tabular-nums text-slate-800">
-                              {score}
-                            </td>
-                            <td className="border border-slate-200 px-2 py-2 text-center tabular-nums text-slate-600">
-                              {pct}%
-                            </td>
-                            <td className="border border-slate-200 px-2 py-2 text-center">
-                              <span
-                                className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-bold ${
-                                  m.passed
-                                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                                    : "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
-                                }`}
-                              >
-                                {gr}
-                              </span>
-                            </td>
-                          </Fragment>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="border-t-2 border-slate-300 bg-slate-50 font-bold text-slate-900">
-                  <tr>
-                    <td className="border border-slate-200 px-4 py-2 font-bold text-slate-900 bg-slate-100/60">
-                      Total Marks
-                    </td>
-                    {previousExams.map((pExam) => (
-                      <td
-                        key={pExam.examId}
-                        colSpan={3}
-                        className="border border-slate-200 px-2 py-2 text-center tabular-nums font-bold text-slate-900"
-                      >
-                        {pExam.total} / {pExam.maxTotal}
-                      </td>
-                    ))}
-                  </tr>
-                  <tr>
-                    <td className="border border-slate-200 px-4 py-2 font-bold text-slate-900 bg-slate-100/60">
-                      Percentage (%)
-                    </td>
-                    {previousExams.map((pExam) => (
-                      <td
-                        key={pExam.examId}
-                        colSpan={3}
-                        className="border border-slate-200 px-2 py-2 text-center tabular-nums font-bold text-brand-700"
-                      >
-                        {pExam.percentage}%
-                      </td>
-                    ))}
-                  </tr>
-                  <tr>
-                    <td className="border border-slate-200 px-4 py-2 font-bold text-slate-900 bg-slate-100/60">
-                      Overall Grade
-                    </td>
-                    {previousExams.map((pExam) => (
-                      <td
-                        key={pExam.examId}
-                        colSpan={3}
-                        className="border border-slate-200 px-2 py-2 text-center"
-                      >
-                        <GradePill grade={pExam.grade} />
-                      </td>
-                    ))}
-                  </tr>
-                  <tr>
-                    <td className="border border-slate-200 px-4 py-2 font-bold text-slate-900 bg-slate-100/60">
-                      Result
-                    </td>
-                    {previousExams.map((pExam) => (
-                      <td
-                        key={pExam.examId}
-                        colSpan={3}
-                        className="border border-slate-200 px-2 py-2 text-center"
-                      >
-                        <Badge tone={pExam.passed ? "green" : "rose"}>
-                          {pExam.passed ? "Passed" : "Arrear(s)"}
-                        </Badge>
-                      </td>
-                    ))}
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          )}
-        </div>
-      </Modal>
     </>
   );
 }
