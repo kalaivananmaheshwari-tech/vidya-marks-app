@@ -92,6 +92,15 @@ export default function LoginForm() {
             </Button>
           </Link>
         </div>
+
+        <p className="mt-5 text-center">
+          <Link
+            href="/register?mode=recover"
+            className="text-sm font-semibold text-brand-600 transition hover:text-brand-700 hover:underline"
+          >
+            Forget Password or Change Admin Details →
+          </Link>
+        </p>
       </Card>
     </div>
   );

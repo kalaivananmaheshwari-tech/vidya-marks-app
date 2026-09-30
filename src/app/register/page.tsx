@@ -5,9 +5,16 @@ import RegisterForm from "./register-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function RegisterPage() {
+export default async function RegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mode?: string }>;
+}) {
   const auth = await getAuth();
   if (auth) redirect("/dashboard");
+
+  const { mode } = await searchParams;
+  const recover = mode === "recover";
 
   return (
     <div className="grid min-h-screen lg:grid-cols-[1fr_1.05fr]">
@@ -27,11 +34,24 @@ export default async function RegisterPage() {
 
         <div className="relative max-w-md">
           <h1 className="text-4xl font-bold leading-tight tracking-tight">
-            Register your school in under a minute.
+            {recover
+              ? "Recover your admin sign-in."
+              : "Register your school in under a minute."}
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-white/75">
-            Your 11-digit UDISE code becomes the admin login for the school. As admin you then
-            create a username and password for each teacher, and they enter marks for their subjects.
+            {recover ? (
+              <>
+                Select your school&apos;s username, verify with the registered phone number,
+                and update the admin name or set a new password — for example when a new
+                Headmaster / Headmistress / Principal takes charge.
+              </>
+            ) : (
+              <>
+                Your 11-digit UDISE code becomes the admin login for the school. As admin you
+                then create a username and password for each teacher, and they enter marks for
+                their subjects.
+              </>
+            )}
           </p>
 
           <ol className="mt-8 space-y-3">
@@ -60,7 +80,7 @@ export default async function RegisterPage() {
       </section>
 
       <section className="flex items-center justify-center px-5 py-12 sm:px-10">
-        <RegisterForm />
+        <RegisterForm initialMode={recover ? "recover" : "register"} />
       </section>
     </div>
   );
