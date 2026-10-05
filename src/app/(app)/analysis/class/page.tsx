@@ -32,13 +32,14 @@ type OfficialReportsResponse = {
 };
 
 export default function ClassAnalysisPage() {
+  const me=useApi<{user:{role:string}|null}>("/api/auth/me");
   const exams = useApi<{ exams: ExamRow[] }>("/api/exams");
   const [examId, setExamId] = useState("");
   const [viewMode, setViewMode] = useState<"dashboard" | "form2">("dashboard");
   const [form2ClassId, setForm2ClassId] = useState("");
 
   const url = useMemo(
-    () => `/api/analysis/class${examId ? `?examId=${examId}` : ""}`,
+    () => `/api/analysis/class${examId ? `?examId=${examId}&mode=form2` : ""}`,
     [examId],
   );
   const { data, loading, error, refresh } = useApi<Response>(url, [url]);
@@ -60,9 +61,9 @@ export default function ClassAnalysisPage() {
 
   // Form-II API query
   const form2Url = useMemo(() => {
-    if (!form2ClassId || !examId) return null;
+    if (viewMode!=="form2" || !form2ClassId || !examId) return null;
     return `/api/reports/official?classId=${form2ClassId}&examId=${examId}`;
-  }, [form2ClassId, examId]);
+  }, [form2ClassId, examId, viewMode]);
 
   const form2Api = useApi<OfficialReportsResponse>(form2Url, [form2Url]);
 
@@ -114,6 +115,8 @@ export default function ClassAnalysisPage() {
             </button>
             <button
               type="button"
+              disabled={me.data?.user?.role!=="admin"}
+              title="School-wide Form-II is available to administrators / class teachers via Official reports"
               onClick={() => setViewMode("form2")}
               className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer ${
                 viewMode === "form2"

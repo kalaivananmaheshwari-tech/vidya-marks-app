@@ -1,20 +1,12 @@
-import { handleError, json, numParam, requireAuth, str } from "@/lib/api";
+import { db } from "@/db";
+import { handleError, json, requireAuth } from "@/lib/api";
+import { analysisFilters } from "@/lib/analysis-scope";
 import { sectionReport } from "@/lib/reports";
-
+import { str } from "@/lib/http";
 export const dynamic = "force-dynamic";
-
 export async function GET(request: Request) {
   try {
-    const { user } = await requireAuth();
-    const url = new URL(request.url);
-    return json(
-      await sectionReport({
-        schoolId: user.schoolId,
-        examId: numParam(url.searchParams.get("examId")),
-        grade: str(url.searchParams.get("grade")),
-      }),
-    );
-  } catch (error) {
-    return handleError(error);
-  }
+    const auth=await requireAuth(); const url=new URL(request.url); const filters=await analysisFilters(auth,url);
+    return json(await db.transaction((tx)=>sectionReport({...filters,grade:str(url.searchParams.get("grade"))}, tx),{isolationLevel:"repeatable read",accessMode:"read only"}));
+  } catch(error) {return handleError(error);}
 }

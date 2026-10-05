@@ -19,7 +19,7 @@ import {
 } from "@/components/ui";
 import { apiRequest, useApi } from "@/lib/client";
 import type { ExamRow } from "@/lib/shared-types";
-import { ACADEMIC_YEARS, DEFAULT_ACADEMIC_YEAR } from "@/lib/academic";
+import { DEFAULT_ACADEMIC_YEAR } from "@/lib/academic";
 
 const MONTHS = [
   "January",
@@ -51,6 +51,7 @@ const emptyForm = {
 
 export default function ExamsPage() {
   const toast = useToast();
+  const academicYears=useApi<{academicYears:Array<{id:string;label:string}>}>("/api/academic-years");
   const { data, loading, error, refresh, setData } = useApi<{ exams: ExamRow[] }>("/api/exams");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ExamRow | null>(null);
@@ -151,7 +152,7 @@ export default function ExamsPage() {
     setData({ exams: exams.filter((e) => e.id !== deleting.id) });
     try {
       await apiRequest(`/api/exams/${deleting.id}`, { method: "DELETE" });
-      toast.push("Examination removed");
+      toast.push("Examination archived; history retained");
       setDeleting(null);
       await refresh();
     } catch (err) {
@@ -320,7 +321,7 @@ export default function ExamsPage() {
                 value={form.academicYear}
                 onChange={(e) => setForm({ ...form, academicYear: e.target.value })}
               >
-                {ACADEMIC_YEARS.map((yr) => (
+                {(academicYears.data?.academicYears.map((y)=>y.label) ?? []).map((yr) => (
                   <option key={yr} value={yr}>
                     {yr}
                   </option>
@@ -372,7 +373,7 @@ export default function ExamsPage() {
 
       <ConfirmDialog
         open={Boolean(deleting)}
-        title={`Delete ${deleting?.name ?? ""}?`}
+        title={`Archive ${deleting?.name ?? ""}?`}
         message="Every mark recorded for this examination will be permanently removed."
         onCancel={() => setDeleting(null)}
         onConfirm={confirmDelete}

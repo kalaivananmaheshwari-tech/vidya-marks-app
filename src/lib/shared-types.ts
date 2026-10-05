@@ -1,3 +1,4 @@
+import type {ResultState} from "@/lib/domain/marks";
 export type GroupRow = {
   id: number;
   code: string;
@@ -6,6 +7,7 @@ export type GroupRow = {
   description: string | null;
   classCount: number;
   subjectCount: number;
+  assignments?: Array<{classId:number;subjectId:number}>;
   studentCount: number;
 };
 
@@ -69,7 +71,7 @@ export type StudentRow = {
   groupCode: string | null;
   guardianName: string | null;
   contact: string | null;
-  avgPercentage: number;
+  avgPercentage: number | null;
 };
 
 export type TeacherRow = {
@@ -85,6 +87,7 @@ export type TeacherRow = {
   lastLoginAt: string | null;
   classCount: number;
   subjectCount: number;
+  assignments?: Array<{classId:number;subjectId:number}>;
 };
 
 export type MarkAssignItem = {
@@ -117,13 +120,14 @@ export type StudentTotalRow = {
   rollNo: number;
   classId: number;
   classLabel: string;
-  total: number;
+  total: number | null;
   maxTotal: number;
-  percentage: number;
+  percentage: number | null;
   grade: string;
   subjectsCount: number;
   failedSubjects: number;
   rank: number;
+  result: ResultState;
 };
 
 export type OverviewResponse = {
@@ -220,6 +224,8 @@ export type SectionAnalysisGrade = {
 };
 
 export type StudentReport = {
+  school:{name:string;udiseCode:string};
+  scope:string;
   profile: {
     id: number;
     name: string;
@@ -235,9 +241,11 @@ export type StudentReport = {
   examCards: Array<{
     examId: number;
     examName: string;
-    total: number;
+    academicYear:string;
+    classLabel:string;
+    total: number | null;
     maxTotal: number;
-    percentage: number;
+    percentage: number | null;
     grade: string;
     rank: number | null;
     classSize: number;
@@ -248,7 +256,9 @@ export type StudentReport = {
       score: number | null;
       maxMarks: number;
       isAbsent: boolean;
-      percentage: number;
+      isExempt: boolean;
+      status:string;
+      percentage: number | null;
       grade: string;
       passed: boolean;
     }>;
@@ -262,5 +272,5 @@ export type StudentReport = {
     distinction: number;
     grades: Record<string, number>;
   };
-  subjectTrend: Array<{ name: string; average: number; points: Array<{ exam: string; value: number }> }>;
+  subjectTrend: Array<{ name: string; average: number; points: Array<{ exam: string; value: number | null }> }>;
 };

@@ -1,69 +1,26 @@
-import { and, asc, eq, isNull, or } from "drizzle-orm";
-import { db } from "@/db";
-import { classes, subjects, users } from "@/db/schema";
+import { and, asc, eq, isNull } from "drizzle-orm";
+import { db, type DbExecutor } from "@/db";
+import { classes, classSubjects, subjects, users, teacherSubjectAssignments, markAllocations } from "@/db/schema";
 
-/** Subjects a class studies: class-specific subjects, or group subjects + common subjects. */
-export async function subjectsForClass(classId: number, schoolId: number) {
-  const [cls] = await db
-    .select()
-    .from(classes)
-    .where(and(eq(classes.id, classId), eq(classes.schoolId, schoolId)))
-    .limit(1);
+/** Per-class/section mappings and allocations; legacy global teacher fields are NOT authorization. */
+export async function subjectsForClass(classId: number, schoolId: number, executor: DbExecutor = db, includeArchived = false) {
+  const [cls] = await executor.select().from(classes).where(and(eq(classes.id, classId), eq(classes.schoolId, schoolId))).limit(1);
   if (!cls) return { cls: null, list: [] };
-
-  // 1. Check if class-specific subjects were created for this class
-  const classSpecific = await db
-    .select({
-      id: subjects.id,
-      schoolId: subjects.schoolId,
-      classId: subjects.classId,
-      code: subjects.code,
-      name: subjects.name,
-      groupId: subjects.groupId,
-      hasPractical: subjects.hasPractical,
-      theoryMarks: subjects.theoryMarks,
-      practicalMarks: subjects.practicalMarks,
-      internalMarks: subjects.internalMarks,
-      maxMarks: subjects.maxMarks,
-      passMarks: subjects.passMarks,
-      teacherId: subjects.teacherId,
-      teacherName: users.name,
-    })
-    .from(subjects)
-    .leftJoin(users, eq(users.id, subjects.teacherId))
-    .where(and(eq(subjects.schoolId, schoolId), eq(subjects.classId, classId)))
+  const list = await executor.select({
+    id: subjects.id, schoolId: subjects.schoolId, classId: classSubjects.classId,
+    code: subjects.code, name: subjects.name, groupId: subjects.groupId, isRequired: classSubjects.isRequired,
+    classSubjectId: classSubjects.id, classSectionId: classSubjects.classSectionId,
+    allocationId: markAllocations.id, mode: markAllocations.mode,
+    hasPractical: markAllocations.hasPractical, theoryMarks: markAllocations.theoryMarks,
+    practicalMarks: markAllocations.practicalMarks, internalMarks: markAllocations.internalMarks,
+    maxMarks: markAllocations.maxMarks, passMarks: markAllocations.passMarks,
+    teacherId: teacherSubjectAssignments.teacherId, teacherName: users.name, teacherActive: users.isActive,
+  }).from(classSubjects)
+    .innerJoin(subjects, and(eq(subjects.id, classSubjects.subjectId), eq(subjects.schoolId, classSubjects.schoolId)))
+    .innerJoin(markAllocations, and(eq(markAllocations.classSubjectId, classSubjects.id), eq(markAllocations.schoolId, classSubjects.schoolId)))
+    .leftJoin(teacherSubjectAssignments, and(eq(teacherSubjectAssignments.classSubjectId, classSubjects.id), eq(teacherSubjectAssignments.schoolId, classSubjects.schoolId)))
+    .leftJoin(users, eq(users.id, teacherSubjectAssignments.teacherId))
+    .where(and(eq(classSubjects.schoolId, schoolId), eq(classSubjects.classId, classId), includeArchived ? undefined : isNull(subjects.archivedAt)))
     .orderBy(asc(subjects.id));
-
-  if (classSpecific.length > 0) {
-    return { cls, list: classSpecific };
-  }
-
-  // 2. Otherwise fall back to group subjects + common subjects
-  const fallbackCondition = cls.groupId
-    ? or(eq(subjects.groupId, cls.groupId), and(isNull(subjects.groupId), isNull(subjects.classId)))
-    : and(isNull(subjects.groupId), isNull(subjects.classId));
-
-  const fallbackList = await db
-    .select({
-      id: subjects.id,
-      schoolId: subjects.schoolId,
-      classId: subjects.classId,
-      code: subjects.code,
-      name: subjects.name,
-      groupId: subjects.groupId,
-      hasPractical: subjects.hasPractical,
-      theoryMarks: subjects.theoryMarks,
-      practicalMarks: subjects.practicalMarks,
-      internalMarks: subjects.internalMarks,
-      maxMarks: subjects.maxMarks,
-      passMarks: subjects.passMarks,
-      teacherId: subjects.teacherId,
-      teacherName: users.name,
-    })
-    .from(subjects)
-    .leftJoin(users, eq(users.id, subjects.teacherId))
-    .where(and(eq(subjects.schoolId, schoolId), fallbackCondition))
-    .orderBy(asc(subjects.id));
-
-  return { cls, list: fallbackList };
+  return { cls, list };
 }

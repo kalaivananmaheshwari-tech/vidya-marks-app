@@ -1,165 +1,50 @@
-# Deploying Vidya Analytics — getting a permanent URL
+# Deploying the existing Vidya Analytics application safely
 
-## Why the preview link keeps dying
+The Arena live preview is temporary and the verification database is isolated/ephemeral. A preview URL or local `.cache` database is **not** durable school hosting. Never assume real records survive sandbox restoration.
 
-The development preview runs in a **temporary sandbox**. Its web address looks like:
+V3 release evidence: [final gap audit](docs/FINAL_VERIFICATION_V3.md), [individual22-constraint review](docs/CONSTRAINT_REVIEW_V3.md), and [authorized-production checklist](docs/PRODUCTION_READINESS_CHECKLIST_V3.md). No local pass authorizes production mutation or deployment.
 
-```
-https://3000-inp6qan0wdpk2vs7rj3t6.e2b.app
-             ^^^^^^^^^^^^^^^^^^^^
-             this is the sandbox ID
-```
+V4 preparation pack: [final release checklist](docs/V4_RELEASE_GATE.md), [environment inventory](docs/V4_ENVIRONMENT_INVENTORY.md), [backup/migration runbook](docs/V4_DATABASE_RELEASE_RUNBOOK.md), [22-constraint operator checklist](docs/V4_CONSTRAINT_OPERATOR_CHECKLIST.md) and [hosting/security/SMS checks](docs/V4_HOST_SECURITY_CHECKLIST.md). These are procedures for later authorization, not commands executed against real targets.
 
-That middle string **is the sandbox's identity**. Sandboxes are disposable: they are
-recycled between sessions or after a period of inactivity. When that happens the ID
-no longer exists, so the old address returns **"sandbox not found" / 502**.
+## Before any deployment
 
-Nothing is broken in the application — it is the hosting that is temporary.
+1. Obtain an authorized **durable PostgreSQL** connection through your host's secret settings; do not put credentials in Git/chat/logs.
+2. Back up and test restoration to a separate database. Inspect duplicates, legacy identities, allocation/snapshot review and nullable old registration metadata. See [deployment safety](docs/DEPLOYMENT_SAFETY.md).
+3. Configure exact `APP_ORIGINS=https://your-domain`; protected production routes return 503 without it. TLS and an appropriately configured trusted proxy are required.
+4. Run `pnpm run db:migrate` explicitly in a maintenance/release step, then **read-only** `pnpm run db:check`. Stop for review on failure; do not reset, renumber or fabricate values.
+5. Run typecheck, lint, OpenAPI validation, tests and build. Start the existing Next app only after migration readiness. `/api/health` is read-only and checks migration0005.
 
-| What | Survives a restart? |
-|------|---------------------|
-| Your source code | ✅ Yes |
-| Database (schools, students, marks) | ✅ Yes |
-| The preview **URL** | ❌ No — a new one is issued |
+## Vercel + a managed PostgreSQL provider
 
-**The permanent fix is to deploy the app to a real host.** Pick one option below.
+Import this existing repository (framework Next.js, pnpm10.28.2). Set `DATABASE_URL` (provider TLS connection/pooling recommendations), `APP_ORIGINS` (exact deployment hostname), `DEMO_MODE=0`, `AUTO_MIGRATE=0`, and optional approved SMS settings in protected variables. Run migrations from an authorized release workstation/job **before** exposing protected production operations. Vercel build/start never silently initialize or seed a production database. Confirm `/api/health`, real login/role isolation, provider delivery and backup restoration on the deployed host.
 
----
+The GitHub Vercel release workflow is now manual-only, defaults to preview and is disabled unless a later authorized operator supplies an explicit acknowledgement/change reference and enables the repository release gate. Production additionally requires a separate approval gate and protected production environment. Pushes/merges no longer deploy through this workflow. No flags/secrets/environments or deployment were configured/executed in V4. Verify required reviewers/branch protection and any provider-native Git auto-deploy separately; see the [V4 release gate](docs/V4_RELEASE_GATE.md).
 
-## Option 1 · Vercel + Neon (easiest, free tier available)
+## Railway / Render / Fly / a VPS
 
-Best if you want a public URL in ~5 minutes with zero server administration.
+Use the existing Node22/Next application and persistent PostgreSQL service. Build `pnpm install --frozen-lockfile && pnpm run build`; release/maintenance `pnpm run db:migrate && pnpm run db:check`; start `pnpm run start` on `0.0.0.0`. Configure exact public HTTPS origins and reverse-proxy forwarding rules; browser code calls relative `/api`, never a backend `localhost` URL. Use your provider's TLS/pool limits and verified secret injection. No production PGlite fallback exists.
 
-1. **Create a database** at [neon.tech](https://neon.tech) (free). Copy the connection
-   string — it looks like
-   `postgresql://user:pass@ep-xxx.aws.neon.tech/neondb?sslmode=require`
-2. **Push this project to GitHub.**
-3. Go to [vercel.com/new](https://vercel.com/new), import the repository.
-4. Under **Environment Variables** add:
+## Docker Compose
 
-   | Name | Value |
-   |------|-------|
-   | `DATABASE_URL` | your Neon connection string |
-
-5. Click **Deploy**.
-
-You get a permanent URL like `https://vidya-analytics.vercel.app`, plus automatic
-HTTPS and redeploys on every git push. Add your own domain under
-**Settings → Domains** if you have one.
-
-> No migration step is needed. On first boot the app creates its own tables and seeds
-> the demo school (see `src/instrumentation.ts`).
-
----
-
-## Option 2 · Railway (database + app in one place)
-
-1. Sign in at [railway.app](https://railway.app) → **New Project**.
-2. **Add PostgreSQL** from the service catalogue.
-3. **Add a service → Deploy from GitHub repo** and select this project.
-4. In the app service → **Variables**, add:
-
-   ```
-   DATABASE_URL = ${{Postgres.DATABASE_URL}}
-   ```
-
-   (Railway substitutes the internal database URL automatically.)
-5. Under **Settings → Networking**, click **Generate Domain**.
-
----
-
-## Option 3 · Your own server / VPS with Docker (full control)
-
-Good if the school has its own machine and wants the data to stay on-premises.
+Set **both** `DB_PASSWORD` (strong URL-safe value in protected environment) and `APP_ORIGINS` (exact HTTPS public hostname). Existing database volume name is retained. The `migrate` service runs the explicit migration/read-only check before the app starts; no reset or seed occurs.
 
 ```bash
-git clone <your-repo-url> vidya-analytics
-cd vidya-analytics
-
-# set a strong database password
-echo "DB_PASSWORD=$(openssl rand -hex 16)" > .env
-
 docker compose up -d --build
 ```
 
-The app is now on `http://<server-ip>:3000` and restarts automatically with the
-machine. Data lives in the `vidya_pgdata` Docker volume.
-
-**Add HTTPS + a domain** by putting Nginx or Caddy in front. Caddy example:
-
-```
-marks.yourschool.edu.in {
-    reverse_proxy localhost:3000
-}
-```
-
-**Back up the database** (recommended weekly, via cron):
+For an existing deployment, first take a backup and follow maintenance review. Never use `docker compose down -v` to solve an application or migration error. Put Caddy/Nginx/TLS in front; retain `vidya_pgdata` and test restoration to a **different** database.
 
 ```bash
-docker compose exec -T db pg_dump -U vidya vidya_analytics > backup-$(date +%F).sql
+# Backup contains personal data; store securely with restricted access.
+docker compose exec -T db pg_dump -U vidya -Fc vidya_analytics > secured-backup.dump
 ```
 
-**Restore:**
+Do not restore over a live school database, or delete rows/constraints to make an upgrade pass. Container/cloud deployment has not been executed in the sandbox; local native PostgreSQL, API and browser verification is not proof of provider deployment.
 
-```bash
-cat backup-2026-01-15.sql | docker compose exec -T db psql -U vidya -d vidya_analytics
-```
+## Configuration not yet available
 
----
+Real SMS: `RECOVERY_SECRET` ≥32 random characters, authorized HTTPS `SMS_WEBHOOK_URL`, protected `SMS_API_KEY`; verify your adapter contract and actual receipt. Account recovery stays unavailable otherwise. Officer authority/activation/provisioning and CCE workflow remain blocked regardless of hosting configuration.
 
-## Option 4 · Render
+## Existing Vercel project preflight
 
-1. [render.com](https://render.com) → **New → PostgreSQL**, create the database and
-   copy its **Internal Database URL**.
-2. **New → Web Service**, connect the repository.
-   - Build command: `npm install && npm run build`
-   - Start command: `npm run start`
-3. Add the environment variable `DATABASE_URL` with the internal URL.
-4. Deploy.
-
----
-
-## Requirements summary
-
-| Item | Value |
-|------|-------|
-| Node.js | 20 or newer (22 recommended) |
-| Database | PostgreSQL 14 or newer |
-| Required env var | `DATABASE_URL` |
-| Build command | `npm run build` |
-| Start command | `npm run start` |
-| Health check path | `/api/health` |
-| Migrations | none — schema is created automatically on boot |
-
----
-
-## First run after deploying
-
-1. Open your new permanent URL — you land on the sign-in page.
-2. Click **Register your school** and enter your real school name, your genuine
-   11-digit UDISE code and a strong password. This becomes your admin login.
-3. Go to **Teacher logins** and create an account for each teacher.
-4. Set up group codes → classes → subjects → students → exams, then enter marks.
-
-### About the demo school
-
-A demo school (UDISE `33064500112`) is seeded so the app is never empty on first
-visit. Once your real school is registered you can remove the demo data:
-
-```sql
-DELETE FROM schools WHERE udise_code = '33064500112';
-```
-
-Every table cascades from `schools`, so this cleanly removes all demo students,
-marks, classes and logins while leaving your school untouched.
-
----
-
-## Security checklist before going live
-
-- [ ] Use a strong, unique admin password (not the demo `admin@123`)
-- [ ] Delete the demo school once your own data is in
-- [ ] Serve over HTTPS (automatic on Vercel / Railway / Render)
-- [ ] Take regular database backups
-- [ ] Give each teacher their own login — never share the admin UDISE login
-- [ ] Disable logins for staff who leave (**Teacher logins → Disable**)
+See [current Vercel release preflight](docs/VERCEL_RELEASE_PREFLIGHT.md). The reviewed revision includes `vercel.json` with native Git deployment disabled, so a source push cannot substitute for the manual release gate. Explicit CLI/workflow releases are held until the existing project’s isolated Preview database/readiness/exact origin and credentials/reviewer permissions are verified. The workflow reuses the actual **Preview/Production** GitHub environments. Production remains untouched.

@@ -1,14 +1,4 @@
-import { runSeed } from "@/db/seed";
-import { handleError, json } from "@/lib/api";
-
+import { json } from "@/lib/http";
 export const dynamic = "force-dynamic";
-
-/** Rebuilds the public demo school only. Registered schools are never touched. */
-export async function POST() {
-  try {
-    const result = await runSeed(true);
-    return json(result);
-  } catch (error) {
-    return handleError(error);
-  }
-}
+/** The legacy route is kept, but can NEVER reset/delete a school's academic data. */
+export async function POST() { return json({ error: "Database reset is disabled. No data was changed.", code: "DESTRUCTIVE_OPERATION_DISABLED" }, 410); }

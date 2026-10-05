@@ -1,84 +1,49 @@
-import fs from "node:fs";
-import path from "node:path";
 import { drizzle as drizzleNodePg } from "drizzle-orm/node-postgres";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { PGlite } from "@electric-sql/pglite";
 import { Pool } from "pg";
 
-const databaseUrl = process.env.DATABASE_URL;
-// Use external postgres pool if a remote connection string is provided
-const isRemotePg = Boolean(
-  databaseUrl &&
-    !databaseUrl.includes("placeholder") &&
-    !databaseUrl.includes("127.0.0.1") &&
-    !databaseUrl.includes("localhost"),
-);
-
-type NodePgDb = ReturnType<typeof drizzleNodePg>;
-
+export type Database = ReturnType<typeof drizzleNodePg>;
+export type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
+export type DbExecutor = Pick<Database, "select" | "insert" | "update" | "delete" | "execute">;
 const globalForDb = globalThis as typeof globalThis & {
-  __arenaNextJsPostgresqlPool?: Pool;
-  __arenaNextJsPgliteInstance?: PGlite;
-  __arenaNextJsDb?: NodePgDb;
-  __arenaPgliteShutdownHookRegistered?: boolean;
+  __vidyaPool?: Pool; __vidyaPglite?: PGlite; __vidyaDb?: Database;
 };
 
-export const pool =
-  globalForDb.__arenaNextJsPostgresqlPool ??
-  new Pool({
-    connectionString:
-      databaseUrl || "postgresql://postgres:postgres@localhost:5432/placeholder",
-    connectionTimeoutMillis: 5000,
-  });
-
-globalForDb.__arenaNextJsPostgresqlPool = pool;
-
-function initDb(): NodePgDb {
-  if (globalForDb.__arenaNextJsDb) {
-    return globalForDb.__arenaNextJsDb;
-  }
-
-  let dbInstance: unknown;
-  if (isRemotePg) {
-    dbInstance = drizzleNodePg(pool);
+/** Every supplied DATABASE_URL, including local PostgreSQL, is honored. */
+function database(): Database {
+  if (globalForDb.__vidyaDb) return globalForDb.__vidyaDb;
+  const url = process.env.DATABASE_URL;
+  if (url) {
+    const parsed = new URL(url);
+    if (!["postgres:", "postgresql:"].includes(parsed.protocol) || url.includes("placeholder")) throw new Error("A valid PostgreSQL DATABASE_URL is required.");
+    const pool = globalForDb.__vidyaPool ?? new Pool({ connectionString: url, connectionTimeoutMillis: 5000, max: 10 });
+    globalForDb.__vidyaPool = pool;
+    pool.on("error", () => console.error("[database] connection unavailable"));
+    globalForDb.__vidyaDb = drizzleNodePg(pool);
+  } else if (process.env.VIDYA_DEV_DATABASE === "pglite" && process.env.NODE_ENV !== "production") {
+    // Existing embedded PostgreSQL support is explicitly development/test-only.
+    // Never unlink a PID/lock file or use embedded storage silently in production.
+    const instance = globalForDb.__vidyaPglite ?? new PGlite(process.env.PGLITE_DATA_DIR || "./.pgdata");
+    globalForDb.__vidyaPglite = instance;
+    globalForDb.__vidyaDb = drizzlePglite(instance) as unknown as Database;
   } else {
-    const pglitePath = process.env.PGLITE_DATA_DIR || "./.pgdata";
-    const pidFile = path.join(pglitePath, "postmaster.pid");
-    if (fs.existsSync(pidFile)) {
-      try {
-        fs.unlinkSync(pidFile);
-      } catch {
-        // ignore
-      }
-    }
-
-    const pglite =
-      globalForDb.__arenaNextJsPgliteInstance ?? new PGlite(pglitePath);
-    globalForDb.__arenaNextJsPgliteInstance = pglite;
-    dbInstance = drizzlePglite(pglite);
-
-    if (
-      typeof process !== "undefined" &&
-      !globalForDb.__arenaPgliteShutdownHookRegistered
-    ) {
-      globalForDb.__arenaPgliteShutdownHookRegistered = true;
-      const cleanup = async () => {
-        if (globalForDb.__arenaNextJsPgliteInstance) {
-          try {
-            await globalForDb.__arenaNextJsPgliteInstance.close();
-          } catch {
-            // ignore
-          }
-        }
-      };
-      process.on("SIGTERM", cleanup);
-      process.on("SIGINT", cleanup);
-    }
+    throw new Error("DATABASE_URL is required. Embedded PostgreSQL must be explicitly enabled for development.");
   }
-
-  const typedDb = dbInstance as NodePgDb;
-  globalForDb.__arenaNextJsDb = typedDb;
-  return typedDb;
+  return globalForDb.__vidyaDb;
 }
 
-export const db: NodePgDb = initDb();
+// Lazy initialization makes builds independent of a live database/credentials.
+export const db = new Proxy({} as Database, {
+  get(_target, property) {
+    const instance = database();
+    const value = Reflect.get(instance, property);
+    return typeof value === "function" ? value.bind(instance) : value;
+  },
+});
+export const databaseMode = () => process.env.DATABASE_URL ? "postgresql" : "development-pglite";
+export async function closeDatabase() {
+  if (globalForDb.__vidyaPool) await globalForDb.__vidyaPool.end();
+  if (globalForDb.__vidyaPglite) await globalForDb.__vidyaPglite.close();
+  delete globalForDb.__vidyaDb; delete globalForDb.__vidyaPool; delete globalForDb.__vidyaPglite;
+}

@@ -1,12 +1,11 @@
-# One-command deploy: `docker compose up -d`
-# Gives you the app on http://<server-ip>:3000 with its own PostgreSQL database.
+# Existing named PostgreSQL volume is preserved. Supply secrets/origins outside Git.
 services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: vidya
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-change_this_password}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set a strong URL-safe DB_PASSWORD in protected environment}
       POSTGRES_DB: vidya_analytics
     volumes:
       - vidya_pgdata:/var/lib/postgresql/data
@@ -16,20 +15,44 @@ services:
       timeout: 5s
       retries: 10
 
-  app:
-    build: .
-    restart: unless-stopped
+  migrate:
+    build:
+      context: .
+      target: tools
+    restart: "no"
     depends_on:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://vidya:${DB_PASSWORD:-change_this_password}@db:5432/vidya_analytics
+      DATABASE_URL: postgresql://vidya:${DB_PASSWORD:?Set DB_PASSWORD}@db:5432/vidya_analytics
       NODE_ENV: production
+      DEMO_MODE: "0"
+    command: ["sh", "-c", "pnpm run db:migrate && pnpm run db:check"]
+
+  app:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql://vidya:${DB_PASSWORD:?Set DB_PASSWORD}@db:5432/vidya_analytics
+      APP_ORIGINS: ${APP_ORIGINS:?Set the exact public HTTPS application origin}
+      NODE_ENV: production
+      DEMO_MODE: "0"
+      AUTO_MIGRATE: "0"
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+      RECOVERY_SECRET: ${RECOVERY_SECRET:-}
+      SMS_WEBHOOK_URL: ${SMS_WEBHOOK_URL:-}
+      SMS_API_KEY: ${SMS_API_KEY:-}
     ports:
       - "3000:3000"
     healthcheck:
-      test:
-        ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 5

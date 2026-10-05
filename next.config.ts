@@ -11,6 +11,8 @@ const nextConfig: NextConfig = {
   ...(isContainerBuild ? { output: "standalone" as const } : {}),
   serverExternalPackages: ["@electric-sql/pglite", "pg"],
   poweredByHeader: false,
+  allowedDevOrigins: ["localhost", "127.0.0.1", "0.0.0.0", "*.e2b.app"],
+  outputFileTracingIncludes: { "/*": ["./migrations/*.sql", "./openapi.json"] },
 };
 
 export default nextConfig;

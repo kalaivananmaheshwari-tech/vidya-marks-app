@@ -1,10 +1,13 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import { ensureSchema } from "@/db/bootstrap";
-import { classes, exams, groups, marks, schools, students, subjects, users } from "@/db/schema";
-import { hashPassword } from "@/lib/auth";
+import { classes, exams, groups, marks, schools, students, subjects, users, studentEnrollments, classSubjects, markAllocations } from "@/db/schema";
+import {publishResultInTransaction} from "@/lib/exam-service";
+import {allocationFor,classNumber} from "@/lib/domain/marks";
+import { hashPassword,type SchoolAuthContext } from "@/lib/auth";
+import { addMembership, syncClassRelations, yearRecord } from "@/lib/relations";
 
-/** Demo school credentials shown on the login page. */
+/** Existing optional development fixture only; never exposed by login or an API. */
 export const DEMO = {
   udise: "33064500112",
   schoolName: "Sri Vidya Peeth Higher Secondary School",
@@ -62,41 +65,34 @@ async function demoExists(): Promise<boolean> {
  * Seeds one fully populated demo school.
  */
 export async function runSeed(force = false): Promise<SeedResult> {
+  if (force) throw new Error("Destructive reseeding is disabled.");
   await ensureSchema();
-
-  if (!force && (await demoExists())) {
-    return { seeded: false, reason: "already-populated" };
-  }
-
-  const lock = await db.execute<{ locked: boolean }>(
-    sql`select pg_try_advisory_lock(918273645) as locked`,
-  );
-  const locked = (lock.rows as Array<{ locked: boolean }>)[0]?.locked;
-  if (!locked) return { seeded: false, reason: "locked" };
-
-  try {
-    if (force) {
-      await db.execute(sql`delete from schools where udise_code = ${DEMO.udise}`);
-    } else if (await demoExists()) {
-      return { seeded: false, reason: "already-populated" };
-    }
-
-    const [school] = await db
+  if (process.env.NODE_ENV === "production" || process.env.DEMO_MODE !== "1") return { seeded: false, reason: "demo-disabled" };
+  if (await demoExists()) return { seeded: false, reason: "already-populated" };
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(918273645)`);
+    const present = await tx.execute(sql`select id from schools where udise_code=${DEMO.udise}`);
+    if (present.rows.length) return { seeded: false, reason: "already-populated" };
+    const academicYearRecord = await yearRecord("2026-2027", tx);
+    const [school] = await tx
       .insert(schools)
       .values({
         name: DEMO.schoolName,
         udiseCode: DEMO.udise,
         district: "Coimbatore",
+        educationalDistrict: "Coimbatore", block: "Coimbatore North",
+        management: "Matric", schoolType: "Higher Secondary", adminContactNumber: "9840011223",
         state: "Tamil Nadu",
         email: "office@vidyapeeth.edu",
         phone: "+91 422 246 8800",
         academicYear: "2026-2027",
+        academicYearId: academicYearRecord.id,
       })
       .returning();
     const schoolId = school.id;
 
     // 3.0 Teachers: Name of the teacher, Handling subjects
-    const staff = await db
+    const staff = await tx
       .insert(users)
       .values([
         {
@@ -161,12 +157,14 @@ export async function runSeed(force = false): Promise<SeedResult> {
           phone: "+91 98403 88990",
         },
       ])
-      .returning({ id: users.id, name: users.name });
+      .returning({ id: users.id, name: users.name, username: users.username, role: users.role });
+
+    for (const member of staff){await addMembership(tx, schoolId, member.id, member.username, member.role === "admin" ? "PRINCIPAL" : "TEACHER");await tx.update(users).set({mustChangePassword:true,userType:member.role==="admin"?"PRINCIPAL":"TEACHER"}).where(sql`${users.id}=${member.id}`);}
 
     const teacherId = (i: number) => staff[i % staff.length].id;
 
     // Groups for 11 and 12
-    const groupRows = await db
+    const groupRows = await tx
       .insert(groups)
       .values([
         {
@@ -210,7 +208,7 @@ export async function runSeed(force = false): Promise<SeedResult> {
     const g = Object.fromEntries(groupRows.map((row) => [row.code, row.id])) as Record<string, number>;
 
     // 2. Mark Assign: If practical -> Theory 70, Practical 20, Internal 10. Otherwise -> Theory 90, Internal 10.
-    const subjectRows = await db
+    const subjectRows = await tx
       .insert(subjects)
       .values([
         // Common
@@ -221,7 +219,7 @@ export async function runSeed(force = false): Promise<SeedResult> {
         { schoolId, code: "SCI-G", name: "Science", groupId: g.GEN, hasPractical: true, theoryMarks: 70, practicalMarks: 20, internalMarks: 10, teacherId: teacherId(2) },
         { schoolId, code: "SOC-G", name: "Social Science", groupId: g.GEN, hasPractical: false, theoryMarks: 90, practicalMarks: 0, internalMarks: 10, teacherId: teacherId(5) },
         { schoolId, code: "PET-G", name: "PET", groupId: g.GEN, hasPractical: false, theoryMarks: 90, practicalMarks: 0, internalMarks: 10, teacherId: teacherId(1) },
-        { schoolId, code: "TNS-G", name: "TNSMART", groupId: g.GEN, hasPractical: false, theoryMarks: 90, practicalMarks: 0, internalMarks: 10, teacherId: teacherId(4) },
+        { schoolId, code: "TNS-G", name: "TNSPARK", groupId: g.GEN, hasPractical: false, theoryMarks: 90, practicalMarks: 0, internalMarks: 10, teacherId: teacherId(4) },
         { schoolId, code: "SCT-G", name: "Science Tamil", groupId: g.GEN, hasPractical: true, theoryMarks: 70, practicalMarks: 20, internalMarks: 10, teacherId: teacherId(4) },
         // Higher Secondary (Group 2502)
         { schoolId, code: "PHY-1", name: "Physics", groupId: g["2502"], hasPractical: true, theoryMarks: 70, practicalMarks: 20, internalMarks: 10, teacherId: teacherId(2) },
@@ -242,6 +240,8 @@ export async function runSeed(force = false): Promise<SeedResult> {
       .returning({
         id: subjects.id,
         code: subjects.code,
+        name:subjects.name,
+        teacherId: subjects.teacherId,
         groupId: subjects.groupId,
         hasPractical: subjects.hasPractical,
         theoryMarks: subjects.theoryMarks,
@@ -263,22 +263,28 @@ export async function runSeed(force = false): Promise<SeedResult> {
       { name: "Class 12", section: "B", group: "2701", room: "Block C - 402", teacher: 3 },
     ];
 
-    const classRows = await db
+    const classRows = await tx
       .insert(classes)
       .values(
         classPlan.map((c) => ({
           schoolId,
           name: c.name,
           section: c.section,
-          groupId: g[c.group],
+          groupId: (classNumber(c.name) ?? 0)>=11?g[c.group]:null,
           academicYear: "2026-2027",
+        academicYearId: academicYearRecord.id,
           room: c.room,
           classTeacherId: teacherId(c.teacher),
         })),
       )
       .returning({ id: classes.id, name: classes.name, section: classes.section, groupId: classes.groupId });
 
-    const examRows = await db
+    const clonedByClass=new Map<number,typeof subjectRows>();
+    for(const cls of classRows){if((classNumber(cls.name) ?? 0)>=11)continue;const base=subjectRows.filter((s)=>s.groupId===null || s.groupId===g.GEN);const clones=await tx.insert(subjects).values(base.map((s)=>({schoolId,classId:cls.id,groupId:null,code:`C${cls.id}-${s.code}`,name:s.name==="Language (Tamil)"?"Language":s.name,teacherId:s.teacherId,...allocationFor(classNumber(cls.name)!,s.hasPractical)}))).returning({id:subjects.id,code:subjects.code,name:subjects.name,teacherId:subjects.teacherId,groupId:subjects.groupId,hasPractical:subjects.hasPractical,theoryMarks:subjects.theoryMarks,practicalMarks:subjects.practicalMarks,internalMarks:subjects.internalMarks});clonedByClass.set(cls.id,clones);}
+    const classSectionMap = new Map();
+    for (const cls of classRows) classSectionMap.set(cls.id, await syncClassRelations(tx, cls.id, schoolId, true));
+
+    const examRows = await tx
       .insert(exams)
       .values([
         {
@@ -288,9 +294,10 @@ export async function runSeed(force = false): Promise<SeedResult> {
           year: "2026",
           term: "Term 1",
           academicYear: "2026-2027",
+        academicYearId: academicYearRecord.id,
           maxMarks: 100,
           startDate: "2026-07-14",
-          isPublished: true,
+          isPublished: false,
         },
         {
           schoolId,
@@ -299,9 +306,10 @@ export async function runSeed(force = false): Promise<SeedResult> {
           year: "2026",
           term: "Term 1",
           academicYear: "2026-2027",
+        academicYearId: academicYearRecord.id,
           maxMarks: 100,
           startDate: "2026-09-22",
-          isPublished: true,
+          isPublished: false,
         },
         {
           schoolId,
@@ -310,9 +318,10 @@ export async function runSeed(force = false): Promise<SeedResult> {
           year: "2026",
           term: "Term 2",
           academicYear: "2026-2027",
+        academicYearId: academicYearRecord.id,
           maxMarks: 100,
           startDate: "2026-12-08",
-          isPublished: true,
+          isPublished: false,
         },
       ])
       .returning({ id: exams.id, name: exams.name });
@@ -344,10 +353,14 @@ export async function runSeed(force = false): Promise<SeedResult> {
       }
     });
 
-    const insertedStudents = await db
+    const insertedStudents = await tx
       .insert(students)
       .values(studentValues)
-      .returning({ id: students.id, admissionNo: students.admissionNo, classId: students.classId });
+      .returning({ id: students.id, uuid: students.uuid, rollNo: students.rollNo, admissionNo: students.admissionNo, classId: students.classId });
+    const enrollmentRows = await tx.insert(studentEnrollments).values(insertedStudents.map((student) => ({ schoolId, studentId: student.id, studentUuid: student.uuid, classId: student.classId, classSectionId: classSectionMap.get(student.classId).id, academicYearId: academicYearRecord.id, examNumber: student.rollNo }))).returning();
+    const enrollmentByStudent = new Map(enrollmentRows.map((e) => [e.studentId, e]));
+    const allocationRows = await tx.select({ allocation: markAllocations, classId: classSubjects.classId, subjectId: classSubjects.subjectId, classSubjectId: classSubjects.id }).from(classSubjects).innerJoin(markAllocations, sql`${markAllocations.classSubjectId} = ${classSubjects.id}`).where(sql`${classSubjects.schoolId} = ${schoolId}`);
+    const allocationByPair = new Map(allocationRows.map((a) => [`${a.classId}:${a.subjectId}`, a]));
 
     const subjectsForGroup = (groupId: number | null) =>
       subjectRows.filter((s) => s.groupId === null || s.groupId === groupId);
@@ -359,7 +372,7 @@ export async function runSeed(force = false): Promise<SeedResult> {
       const cls = classById.get(student.classId);
       if (!cls) continue;
       const base = abilities.get(student.admissionNo) ?? 60;
-      const subjectList = subjectsForGroup(cls.groupId);
+      const subjectList = clonedByClass.get(cls.id) ?? subjectsForGroup(cls.groupId);
 
       examRows.forEach((exam, examIndex) => {
         const trend = examIndex * 2.4;
@@ -374,44 +387,48 @@ export async function runSeed(force = false): Promise<SeedResult> {
           let practicalScore: number | null = null;
           let internalScore: number | null = null;
 
+          const mapping = allocationByPair.get(`${cls.id}:${subject.id}`)!;
+          const allocation = mapping.allocation;
           if (!absent) {
             const ratio = totalScore / 100;
-            if (subject.hasPractical) {
-              // Theory 70, Practical 20, Internal 10
-              theoryScore = Math.round(ratio * 70);
-              practicalScore = Math.round(ratio * 20);
-              internalScore = Math.round(ratio * 10);
-            } else {
-              // Theory 90, Internal 10
-              theoryScore = Math.round(ratio * 90);
-              practicalScore = 0;
-              internalScore = Math.round(ratio * 10);
+            if (allocation.mode === "TOTAL") totalScore = Math.round(totalScore);
+            else {
+              theoryScore = allocation.theoryMarks ? Math.round(ratio * allocation.theoryMarks) : null;
+              practicalScore = allocation.practicalMarks ? Math.round(ratio * allocation.practicalMarks) : null;
+              internalScore = allocation.internalMarks ? Math.round(ratio * allocation.internalMarks) : null;
+              totalScore = (theoryScore ?? 0) + (practicalScore ?? 0) + (internalScore ?? 0);
             }
-            totalScore = (theoryScore ?? 0) + (practicalScore ?? 0) + (internalScore ?? 0);
           }
+          const enrollment = enrollmentByStudent.get(student.id)!;
 
           markValues.push({
             schoolId,
-            studentId: student.id,
+            studentId: student.id, studentUuid: student.uuid, enrollmentId: enrollment.id,
+            classSectionId: enrollment.classSectionId, classSubjectId: mapping.classSubjectId,
+            allocationId: allocation.id, allocationSnapshot: { ...allocation }, status: absent ? "AB" : "NUMERIC",
             subjectId: subject.id,
             examId: exam.id,
             theoryScore,
             practicalScore,
             internalScore,
             score: absent ? null : Math.round(totalScore),
+            scoreExact:absent?null:Math.round(totalScore),theoryScoreExact:theoryScore,practicalScoreExact:practicalScore,internalScoreExact:internalScore,
             isAbsent: absent,
-            enteredById: staff[1 + (examIndex % (staff.length - 1))].id,
+            enteredById: subject.teacherId ?? staff[1].id,
           });
         }
       });
     }
 
     for (let i = 0; i < markValues.length; i += 500) {
-      await db.insert(marks).values(markValues.slice(i, i + 500));
+      await tx.insert(marks).values(markValues.slice(i, i + 500));
     }
 
+    await tx.execute(sql`insert into assessment_mark_components(school_id,mark_id,kind,score,score_exact)
+      select m.school_id,m.id,v.kind,v.score,v.score from marks m cross join lateral(values ('theory',m.theory_score),('practical',m.practical_score),('internal',m.internal_score),('total',m.score)) v(kind,score)
+      where m.school_id=${schoolId} on conflict(mark_id,kind) do nothing`);
+    const auth={user:{...staff[0],role:"admin",userType:"PRINCIPAL",mustChangePassword:false},school,membershipId:null,roles:["PRINCIPAL"],geographicScope:null} as unknown as SchoolAuthContext;
+    for(const exam of examRows)await publishResultInTransaction(tx,auth,exam.id,true);
     return { seeded: true };
-  } finally {
-    await db.execute(sql`select pg_advisory_unlock(918273645)`);
-  }
+  });
 }

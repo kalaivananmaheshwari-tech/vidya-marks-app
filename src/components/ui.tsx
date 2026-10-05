@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useId,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
@@ -112,6 +113,7 @@ export function Button({
   );
 }
 
+const FieldContext=createContext<{labelId:string;hintId:string|null}|null>(null);
 export function Field({
   label,
   children,
@@ -123,14 +125,15 @@ export function Field({
   hint?: string;
   className?: string;
 }) {
+  const id=useId();const labelId=`${id}-label`;const hintId=hint?`${id}-hint`:null;
   return (
-    <label className={classNames("block", className)}>
-      <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <FieldContext.Provider value={{labelId,hintId}}><label className={classNames("block", className)}>
+      <span id={labelId} className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </span>
       {children}
-      {hint ? <span className="mt-1 block text-xs text-slate-400">{hint}</span> : null}
-    </label>
+      {hint ? <span id={hintId ?? undefined} className="mt-1 block text-xs text-slate-400">{hint}</span> : null}
+    </label></FieldContext.Provider>
   );
 }
 
@@ -138,7 +141,7 @@ const controlClass =
   "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm transition focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100 disabled:bg-slate-50";
 
 export function Input({ className, ...rest }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={classNames(controlClass, className)} {...rest} />;
+  const field=useContext(FieldContext);return <input className={classNames(controlClass, className)} aria-labelledby={rest["aria-labelledby"] ?? (rest["aria-label"]?undefined:field?.labelId)} aria-describedby={rest["aria-describedby"] ?? field?.hintId ?? undefined} {...rest} />;
 }
 
 export function Select({
@@ -146,8 +149,8 @@ export function Select({
   children,
   ...rest
 }: SelectHTMLAttributes<HTMLSelectElement> & { children: ReactNode }) {
-  return (
-    <select className={classNames(controlClass, "appearance-none pr-8", className)} {...rest}>
+  const field=useContext(FieldContext);return (
+    <select className={classNames(controlClass, "appearance-none pr-8", className)} aria-labelledby={rest["aria-labelledby"] ?? (rest["aria-label"]?undefined:field?.labelId)} aria-describedby={rest["aria-describedby"] ?? field?.hintId ?? undefined} {...rest}>
       {children}
     </select>
   );
@@ -295,8 +298,8 @@ export function Modal({
   if (!open || !mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-slate-900/40 p-0 backdrop-blur-sm sm:items-center sm:p-6">
-      <div
+    <div className="no-print fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-slate-900/40 p-0 backdrop-blur-sm sm:items-center sm:p-6">
+      <div role="dialog" aria-modal="true" aria-label={title}
         className={classNames(
           "animate-pop w-full rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl",
           width,

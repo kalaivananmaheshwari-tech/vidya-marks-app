@@ -19,7 +19,7 @@ import {
 } from "@/components/ui";
 import { apiRequest, useApi } from "@/lib/client";
 import type { ClassListRow, GroupRow, TeacherRow } from "@/lib/shared-types";
-import { ACADEMIC_YEARS, DEFAULT_ACADEMIC_YEAR } from "@/lib/academic";
+import { DEFAULT_ACADEMIC_YEAR } from "@/lib/academic";
 
 const STANDARD_CLASSES = [
   "Class 6",
@@ -38,7 +38,7 @@ const DEFAULT_SUBJECTS_6_TO_10 = [
   "Science",
   "Social Science",
   "PET",
-  "TNSMART",
+  "TNSPARK",
   "Science Tamil",
 ];
 
@@ -81,6 +81,7 @@ const emptyForm = {
 
 export default function ClassesPage() {
   const toast = useToast();
+  const academicYears=useApi<{academicYears:Array<{id:string;label:string}>}>("/api/academic-years");
   const { data, loading, error, refresh, setData } = useApi<{ classes: ClassListRow[] }>("/api/classes");
   const groups = useApi<{ groups: GroupRow[] }>("/api/groups");
   const teachers = useApi<{ teachers: TeacherRow[] }>("/api/teachers");
@@ -186,7 +187,7 @@ export default function ClassesPage() {
     setData({ classes: classes.filter((c) => c.id !== deleting.id) });
     try {
       await apiRequest(`/api/classes/${deleting.id}`, { method: "DELETE" });
-      toast.push("Class removed");
+      toast.push("Class archived; history retained");
       setDeleting(null);
       await refresh();
     } catch (err) {
@@ -317,12 +318,14 @@ export default function ClassesPage() {
           </>
         }
       >
+        {editing && <p className="mb-4 text-sm text-slate-600">Class/year/section/group identity cannot be changed after creation. Create a new year setup. Edit subject labels under Subjects before assessment entry.</p>}
         <form id="class-form" onSubmit={save} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Name of the class">
               <div className="space-y-1.5">
                 <Select
                   value={STANDARD_CLASSES.includes(form.name) ? form.name : "custom"}
+                  disabled={Boolean(editing)}
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val !== "custom") setForm({ ...form, name: val });
@@ -338,6 +341,7 @@ export default function ClassesPage() {
                 {!STANDARD_CLASSES.includes(form.name) ? (
                   <Input
                     value={form.name}
+                disabled={Boolean(editing)}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     placeholder="e.g. Class 11"
                     required
@@ -349,6 +353,7 @@ export default function ClassesPage() {
             <Field label="Section">
               <Input
                 value={form.section}
+                disabled={Boolean(editing)}
                 onChange={(e) => setForm({ ...form, section: e.target.value.toUpperCase() })}
                 placeholder="A"
                 maxLength={3}
@@ -375,6 +380,7 @@ export default function ClassesPage() {
               <Field label="Group code (User enters Group Code)" hint="e.g. 2502, 2503, Bio-Maths, CS">
                 <Input
                   value={form.groupCode}
+                disabled={Boolean(editing)}
                   onChange={(e) => setForm({ ...form, groupCode: e.target.value.toUpperCase() })}
                   placeholder="2502"
                   className="font-mono font-bold"
@@ -390,6 +396,7 @@ export default function ClassesPage() {
                   <Field label="Sub 1">
                     <Input
                       value={form.sub1}
+                disabled={Boolean(editing)}
                       onChange={(e) => setForm({ ...form, sub1: e.target.value })}
                       placeholder="Language (Tamil)"
                       required
@@ -398,6 +405,7 @@ export default function ClassesPage() {
                   <Field label="Sub 2">
                     <Input
                       value={form.sub2}
+                disabled={Boolean(editing)}
                       onChange={(e) => setForm({ ...form, sub2: e.target.value })}
                       placeholder="English"
                       required
@@ -406,6 +414,7 @@ export default function ClassesPage() {
                   <Field label="Sub 3">
                     <Input
                       value={form.sub3}
+                disabled={Boolean(editing)}
                       onChange={(e) => setForm({ ...form, sub3: e.target.value })}
                       placeholder="Physics"
                       required
@@ -414,6 +423,7 @@ export default function ClassesPage() {
                   <Field label="Sub 4">
                     <Input
                       value={form.sub4}
+                disabled={Boolean(editing)}
                       onChange={(e) => setForm({ ...form, sub4: e.target.value })}
                       placeholder="Chemistry"
                       required
@@ -422,6 +432,7 @@ export default function ClassesPage() {
                   <Field label="Sub 5">
                     <Input
                       value={form.sub5}
+                disabled={Boolean(editing)}
                       onChange={(e) => setForm({ ...form, sub5: e.target.value })}
                       placeholder="Biology / Computer Science"
                       required
@@ -430,6 +441,7 @@ export default function ClassesPage() {
                   <Field label="Sub 6">
                     <Input
                       value={form.sub6}
+                disabled={Boolean(editing)}
                       onChange={(e) => setForm({ ...form, sub6: e.target.value })}
                       placeholder="Mathematics"
                       required
@@ -472,9 +484,10 @@ export default function ClassesPage() {
             <Field label="Academic year">
               <Select
                 value={form.academicYear}
+                disabled={Boolean(editing)}
                 onChange={(e) => setForm({ ...form, academicYear: e.target.value })}
               >
-                {ACADEMIC_YEARS.map((yr) => (
+                {(academicYears.data?.academicYears.map((y)=>y.label) ?? []).map((yr) => (
                   <option key={yr} value={yr}>
                     {yr}
                   </option>
@@ -509,8 +522,8 @@ export default function ClassesPage() {
 
       <ConfirmDialog
         open={Boolean(deleting)}
-        title={`Delete ${deleting?.name ?? ""} - Section ${deleting?.section ?? ""}?`}
-        message="All students in this class and their marks will be permanently deleted."
+        title={`Archive ${deleting?.name ?? ""} - Section ${deleting?.section ?? ""}?`}
+        message="The class is archived. Students, enrollments, marks and publication snapshots are retained."
         onCancel={() => setDeleting(null)}
         onConfirm={confirmDelete}
         busy={busyDelete}

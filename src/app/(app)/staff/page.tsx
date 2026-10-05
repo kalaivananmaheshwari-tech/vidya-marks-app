@@ -17,7 +17,7 @@ import {
   useToast,
 } from "@/components/ui";
 import { apiRequest, useApi } from "@/lib/client";
-import type { SubjectRow, TeacherRow } from "@/lib/shared-types";
+import type { ClassListRow, MarkAssignItem, SubjectRow, TeacherRow } from "@/lib/shared-types";
 
 type Me = {
   user: { id: number; name: string; role: string; schoolId: number } | null;
@@ -38,11 +38,7 @@ const COMBO_DESIGNATIONS = [
   "Principal / Headmaster",
 ];
 
-function randomPassword() {
-  const words = ["Vidya", "Shiksha", "Gyan", "Vidhya", "Pathshala", "Guru"];
-  const word = words[Math.floor(Math.random() * words.length)];
-  return `${word}@${Math.floor(1000 + Math.random() * 8999)}`;
-}
+function randomPassword(){const bytes=new Uint8Array(8);crypto.getRandomValues(bytes);return "Vidya!"+Array.from(bytes,(b)=>b.toString(16).padStart(2,"0")).join("");}
 
 function slugify(name: string) {
   return name
@@ -71,6 +67,10 @@ export default function StaffPage() {
   const { data, loading, error, refresh, setData } = useApi<{ teachers: TeacherRow[] }>("/api/teachers");
   const subjectsData = useApi<{ subjects: SubjectRow[] }>("/api/subjects");
 
+  const classOptions=useApi<{classes:ClassListRow[]}>("/api/classes");
+  const [assignmentClass,setAssignmentClass]=useState("");
+  const [assignments,setAssignments]=useState<Array<{classId:number;subjectId:number}>>([]);
+  const assignmentOptions=useApi<{subjects:MarkAssignItem[]}>(assignmentClass?`/api/mark-assign?classId=${assignmentClass}`:null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<TeacherRow | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -118,6 +118,7 @@ export default function StaffPage() {
   }
 
   function openCreate() {
+    setAssignments([]);setAssignmentClass("");
     setEditing(null);
     setForm({
       ...emptyForm,
@@ -179,6 +180,7 @@ export default function StaffPage() {
           method: "POST",
           body: JSON.stringify({
             ...form,
+            assignments,
             designation: finalDesignation,
           }),
         });
@@ -237,7 +239,7 @@ export default function StaffPage() {
     setData({ teachers: staff.filter((t) => t.id !== deleting.id) });
     try {
       await apiRequest(`/api/teachers/${deleting.id}`, { method: "DELETE" });
-      toast.push("Teacher login removed");
+      toast.push("Teacher login deactivated; history retained");
       setDeleting(null);
       await refresh();
     } catch (err) {
@@ -428,20 +430,27 @@ export default function StaffPage() {
         open={open}
         onClose={() => setOpen(false)}
         title={editing ? `Edit ${editing.name}` : "Add teacher"}
-        description="Fill in the teacher's details. Select handling subjects from unique subjects in classes & sections."
+        description="Each new teacher must have at least one persisted Class + Section + Subject assignment. Profile labels alone do not grant access."
         width="max-w-2xl"
         footer={
           <>
             <Button variant="secondary" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button form="staff-form" type="submit" loading={saving}>
+            <Button form="staff-form" type="submit" loading={saving} disabled={!editing && assignments.length===0}>
               {editing ? "Save changes" : "Create teacher"}
             </Button>
           </>
         }
       >
         <form id="staff-form" onSubmit={save} className="space-y-4">
+          {!editing && <section className="space-y-3 rounded-xl border border-brand-200 bg-brand-50 p-4" aria-label="Required teacher assignments">
+            <h3 className="text-sm font-semibold">Required Class + Section + Subject assignments</h3>
+            <Field label="Assignment Class & Section"><Select value={assignmentClass} onChange={(e)=>setAssignmentClass(e.target.value)}><option value="">Choose a configured class</option>{classOptions.data?.classes.map((c)=><option key={c.id} value={c.id}>{c.name} - {c.section} · {c.academicYear}</option>)}</Select></Field>
+            {assignmentOptions.data?.subjects.map((subject)=><label key={subject.id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={assignments.some((a)=>a.classId===Number(assignmentClass) && a.subjectId===subject.id)} onChange={(e)=>setAssignments((old)=>e.target.checked?[...old,{classId:Number(assignmentClass),subjectId:subject.id}]:old.filter((a)=>!(a.classId===Number(assignmentClass) && a.subjectId===subject.id)))}/>{subject.name}{subject.teacherName && <span className="text-xs text-amber-700">Currently {subject.teacherName}; reassignment is audited</span>}</label>)}
+            <p className="text-xs text-slate-600">{assignments.length} assignment(s) selected. Create classes first. Departing teachers must be disabled before their final assignment is transferred.</p>
+          </section>}
+          {editing && <p className="text-sm text-slate-600">Change real class/section/subject assignments through Mark Assign. Handling-subject labels below are descriptive only.</p>}
           <Field label="Name of the teacher">
             <Input
               value={form.name}
@@ -608,7 +617,7 @@ export default function StaffPage() {
           </>
         }
       >
-        <Field label="New password" hint="Minimum 6 characters">
+        <Field label="New password" hint="Minimum 10 characters">
           <div className="flex gap-2">
             <Input
               value={resetPassword}
@@ -675,7 +684,7 @@ export default function StaffPage() {
       <ConfirmDialog
         open={Boolean(deleting)}
         title={`Remove ${deleting?.name ?? ""}?`}
-        message="Their login stops working. Classes and subjects they were assigned to will be left without a teacher."
+        message="Their login is disabled. Class/subject mappings and historical entries are retained for audit and reassignment."
         onCancel={() => setDeleting(null)}
         onConfirm={confirmDelete}
         busy={busyDelete}

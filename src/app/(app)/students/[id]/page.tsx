@@ -49,6 +49,9 @@ export default function StudentReportPage() {
 
   return (
     <>
+      <style>{`@page{size:A4 portrait;margin:8mm;}`}</style>
+      <h1 className="print-only text-center text-base font-bold">{data.school.name} · UDISE {data.school.udiseCode}<br/>Student Comparative Report Card</h1>
+      <p className="text-xs text-slate-500">{data.scope}</p>
       <PageHeader
         icon="🧑‍🎓"
         title={profile.name}
@@ -57,7 +60,7 @@ export default function StudentReportPage() {
           <>
             <Link
               href={`/students?classId=${profile.classId}`}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              className="no-print rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
               ← Back to class roster
             </Link>
@@ -72,12 +75,12 @@ export default function StudentReportPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Overall average" value={`${overall.average}%`} icon="📈" accent="brand" />
-        <StatCard label="Best subject score" value={`${overall.highest}%`} icon="🏅" accent="green" />
-        <StatCard label="Lowest score" value={`${overall.lowest}%`} icon="📉" accent="rose" />
+        <StatCard label="Overall average" value={overall.attempts?`${overall.average}%`:"—"} icon="📈" accent="brand" />
+        <StatCard label="Best subject score" value={overall.attempts?`${overall.highest}%`:"—"} icon="🏅" accent="green" />
+        <StatCard label="Lowest score" value={overall.attempts?`${overall.lowest}%`:"—"} icon="📉" accent="rose" />
         <StatCard
           label="Subject pass rate"
-          value={`${overall.passRate}%`}
+          value={overall.attempts?`${overall.passRate}%`:"—"}
           sub={`${overall.attempts} papers written`}
           icon="✅"
           accent="sky"
@@ -126,8 +129,8 @@ export default function StudentReportPage() {
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
                   <div>
                     <h3 className="text-sm font-semibold text-slate-900">{exam.examName}</h3>
-                    <p className="text-xs text-slate-500">
-                      {exam.total} / {exam.maxTotal} marks · {exam.percentage}%
+                    <p className="text-xs text-slate-500">{exam.academicYear} · {exam.classLabel} ·
+                      {exam.total ?? "—"} / {exam.maxTotal} marks · {exam.percentage==null?"—":`${exam.percentage}%`}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -139,7 +142,7 @@ export default function StudentReportPage() {
                     <GradePill grade={exam.grade} />
                   </div>
                 </div>
-                <table className="w-full text-sm">
+                <table className="official-table w-full text-sm">
                   <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                     <tr>
                       <th className="px-5 py-2 font-semibold">Subject</th>
@@ -156,10 +159,10 @@ export default function StudentReportPage() {
                           <span className="ml-2 font-mono text-[10px] text-slate-400">{subject.code}</span>
                         </td>
                         <td className="px-3 py-2.5 text-right tabular-nums text-slate-800">
-                          {subject.isAbsent ? "AB" : `${subject.score} / ${subject.maxMarks}`}
+                          {subject.isAbsent ? "AB" : subject.isExempt ? "Exemption" : subject.score===null?"Pending":`${subject.score} / ${subject.maxMarks}`}
                         </td>
                         <td className="px-3 py-2.5 text-right tabular-nums text-slate-600">
-                          {subject.isAbsent ? "—" : `${subject.percentage}%`}
+                          {subject.percentage===null?"—":`${subject.percentage}%`}
                         </td>
                         <td className="px-5 py-2.5 text-right">
                           <GradePill grade={subject.grade} />
@@ -173,6 +176,7 @@ export default function StudentReportPage() {
           </div>
         </>
       )}
+      <div className="signature-block print-only mt-10"><p>Class Teacher ____________________ · HM / Principal ____________________ · Parent ____________________</p></div>
     </>
   );
 }

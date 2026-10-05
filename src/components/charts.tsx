@@ -178,7 +178,7 @@ export function LineChart({
   height = 220,
   unit = "%",
 }: {
-  series: Array<{ name: string; color: string; points: Array<{ label: string; value: number }> }>;
+  series: Array<{ name: string; color: string; points: Array<{ label: string; value: number | null }> }>;
   height?: number;
   unit?: string;
 }) {
@@ -215,12 +215,12 @@ export function LineChart({
         ))}
         {series.map((s) => {
           const d = s.points
-            .map((p, i) => `${i === 0 ? "M" : "L"} ${padX + i * stepX} ${scaleY(p.value)}`)
+            .map((p, i) => p.value===null?"":`${i === 0 || s.points[i-1].value===null ? "M" : "L"} ${padX + i * stepX} ${scaleY(p.value)}`)
             .join(" ");
           return (
             <g key={s.name}>
               <path d={d} fill="none" stroke={s.color} strokeWidth={2.5} strokeLinecap="round" className="animate-draw" />
-              {s.points.map((p, i) => (
+              {s.points.map((p, i) => p.value===null?null:(
                 <g key={`${s.name}-${p.label}`}>
                   <circle cx={padX + i * stepX} cy={scaleY(p.value)} r={4} fill="#fff" stroke={s.color} strokeWidth={2.5}>
                     <title>{`${s.name} · ${p.label}: ${p.value}${unit}`}</title>

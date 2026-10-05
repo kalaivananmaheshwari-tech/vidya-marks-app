@@ -34,8 +34,7 @@ export default async function LoginPage() {
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-white/75">
             Each school registers with its UDISE code. The admin creates teacher logins, teachers key
-            in marks, and everyone reads the same analysis — subject-wise, class-wise and class &amp;
-            section-wise.
+            in marks, and teachers read only their assigned subjects. Administrators and verified geographic officers receive separately scoped analysis.
           </p>
           <div className="mt-8 grid grid-cols-3 gap-3">
             {[
@@ -58,7 +57,7 @@ export default async function LoginPage() {
         </div>
 
         <p className="relative text-xs text-white/50">
-          Academic year 2025 – 2026 · Data is isolated per school
+          Relational academic years · 2026–2027 onward · Data is isolated per school
         </p>
       </section>
 

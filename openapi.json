@@ -1,0 +1,4904 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vidya Analytics existing Next.js API",
+    "version": "2.0.0",
+    "description": "Incremental scoped mark platform. Architecture preserved by user approval; not an Express/Vite monorepo. HTTP-only session cookie and exact mutation-origin policy. Business-rule-gated features are documented as blocked, not claimed implemented."
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Read-only schema readiness",
+        "description": "",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/openapi": {
+      "get": {
+        "summary": "This OpenAPI contract",
+        "description": "",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/academic-years": {
+      "get": {
+        "summary": "Relational academic-year lookup",
+        "description": "",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "School administrator adds a future year",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcademicYearInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "summary": "Authenticate stored membership/geographic authority",
+        "description": "",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Login"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "summary": "Register HEADMASTER / PRINCIPAL; unverified CEO/DEO/BEO cannot self-activate",
+        "description": "Super-user display order: CEO, DEO, HEADMASTER, BEO, PRINCIPAL. Geographic officer submissions are currently 503 AUTHORITY_VERIFICATION_REQUIRED.",
+        "security": [],
+        "responses": {
+          "201": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SchoolRegistration"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OfficerRegistration"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "summary": "Safe user, school and persisted scope",
+        "description": "",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "summary": "Invalidate current session",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/change-password": {
+      "post": {
+        "summary": "Verify current password, replace initial password and invalidate old sessions",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/admin-recover": {
+      "post": {
+        "summary": "Generic registered-contact OTP request and single-use reset",
+        "description": "Known/unknown usernames return indistinguishable challenge responses. Expiry 300s, cooldown 60s, maximum 5 attempts. Real configured HTTPS SMS provider is required; otherwise 503.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/RecoveryRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RecoveryReset"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/admin-list": {
+      "get": {
+        "summary": "Administrator enumeration retired",
+        "description": "",
+        "security": [],
+        "responses": {
+          "410": {
+            "description": "Retired; no data is changed."
+          }
+        }
+      }
+    },
+    "/api/seed": {
+      "post": {
+        "summary": "Destructive reset retired",
+        "description": "",
+        "security": [],
+        "responses": {
+          "410": {
+            "description": "Retired; no data is changed."
+          }
+        }
+      }
+    },
+    "/api/classes": {
+      "get": {
+        "summary": "Stored assigned class/section scope",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Administrator creates class/year; 11\u201312 group code + exactly six custom subjects",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/teachers": {
+      "get": {
+        "summary": "Administrator-only staff list",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create teacher with one-or-more assignments and initial password change",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeacherInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/students": {
+      "get": {
+        "summary": "Assigned roster only",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "classId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "Administrator creates person + UUID enrollment atomically",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StudentInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exams": {
+      "get": {
+        "summary": "School-scoped examinations",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create exam; publication requires complete school/year mappings",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExamInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/marks": {
+      "get": {
+        "summary": "Assigned UUID roster and editable ownership",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "classId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "examId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "subjectId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        ]
+      },
+      "put": {
+        "summary": "Transactional validated mark batch + components + audit",
+        "description": "6\u20137/11\u201312: 70+20+10 or 90+10. 8\u201310: 75+25 or Total /100 only. AB/EXEMPT require all numeric fields null. Missing components stay PENDING. Class1\u20135 / unresolved legacy practical conversion is gated. Exact NUMERIC columns prevent REAL rounding into a pass.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkBatch"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mark-assign": {
+      "get": {
+        "summary": "Scoped persisted class-subject allocations",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "classId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "Administrator atomically configures actual mappings",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MappingInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mark-entry/status": {
+      "get": {
+        "summary": "Admin monitoring / teacher own assigned completion",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "examId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "classId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        ]
+      }
+    },
+    "/api/student-entry": {
+      "get": {
+        "summary": "Administrator scoped details/current grades/comparative history",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "classId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "examId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "studentId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "Atomically save student and submitted approved marks",
+        "description": "StudentInput + optional examId and marks[{subjectId, MarkInput}]. Published grades and legacy components remain protected.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/official": {
+      "get": {
+        "summary": "Scoped consolidated/subject/matrix/Form-II or gated CCE",
+        "description": "Class Teacher or administrator consolidation requires every required entry and current mapped teacher completion. Exact blocker: Consolidated Mark Sheet cannot be generated. Teacher subject mode includes no other subject, consolidated list or school-wide matrix. Published snapshots retain archived roster. Ranks by exact total descending, all required subjects passed, competition 1,1,3. CCE always 409; no FA Total/Level/workflow inferred.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "classId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "examId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "subjectId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "consolidated",
+                "subject",
+                "matrix",
+                "form2",
+                "cce"
+              ]
+            }
+          },
+          {
+            "name": "previousExamId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "includeArchived",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "/api/reports/geographic": {
+      "get": {
+        "summary": "Verified CEO/DEO/BEO aggregate school comparisons",
+        "description": "Persisted authority is reloaded; CEO District, DEO District+Educational District, BEO District+Educational District+Block. Filters cannot widen scope. Verified published snapshots only; no student names/UUIDs. Male/Female/Total, numeric appeared/pass/fail, AB/Exemption and descending subject-average school competition ranks.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "district",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "educationalDistrict",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "block",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "management",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Government",
+                "Aided",
+                "Matric"
+              ]
+            }
+          },
+          {
+            "name": "academicYear",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "examName",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "className",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "subjectName",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "schoolId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        ]
+      }
+    },
+    "/api/classes/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        }
+      ],
+      "patch": {
+        "summary": "Administrator updates scoped classes; historical identity is protected",
+        "description": "Strict partial setup schema. Password/assignment/property permissions are enforced by stored server authority.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Archive/deactivate classes; history is retained",
+        "description": "Required subjects cannot be removed from an active class/year curriculum.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/teachers/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        }
+      ],
+      "patch": {
+        "summary": "Administrator updates scoped teachers; historical identity is protected",
+        "description": "Strict partial setup schema. Password/assignment/property permissions are enforced by stored server authority.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Archive/deactivate teachers; history is retained",
+        "description": "Required subjects cannot be removed from an active class/year curriculum.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/students/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        }
+      ],
+      "patch": {
+        "summary": "Administrator updates scoped students; historical identity is protected",
+        "description": "Strict partial setup schema. Password/assignment/property permissions are enforced by stored server authority.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Archive/deactivate students; history is retained",
+        "description": "Required subjects cannot be removed from an active class/year curriculum.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exams/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        }
+      ],
+      "patch": {
+        "summary": "Administrator updates scoped exams; historical identity is protected",
+        "description": "Strict partial setup schema. Password/assignment/property permissions are enforced by stored server authority.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Archive/deactivate exams; history is retained",
+        "description": "Required subjects cannot be removed from an active class/year curriculum.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/subjects/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        }
+      ],
+      "patch": {
+        "summary": "Administrator updates scoped subjects; historical identity is protected",
+        "description": "Strict partial setup schema. Password/assignment/property permissions are enforced by stored server authority.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Archive/deactivate subjects; history is retained",
+        "description": "Required subjects cannot be removed from an active class/year curriculum.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/groups/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        }
+      ],
+      "patch": {
+        "summary": "Administrator updates scoped groups; historical identity is protected",
+        "description": "Strict partial setup schema. Password/assignment/property permissions are enforced by stored server authority.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Archive/deactivate groups; history is retained",
+        "description": "Required subjects cannot be removed from an active class/year curriculum.",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/subjects": {
+      "get": {
+        "summary": "Scoped subjects lookup; groups are administrator-only",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Administrator creates subjects",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/groups": {
+      "get": {
+        "summary": "Scoped groups lookup; groups are administrator-only",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Administrator creates groups",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analysis/overview": {
+      "get": {
+        "summary": "Scoped overview analysis from real numeric/status-aware records",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "examId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "classId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "subjectId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "groupId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        ]
+      }
+    },
+    "/api/analysis/class": {
+      "get": {
+        "summary": "Scoped class analysis from real numeric/status-aware records",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "examId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "classId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "subjectId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "groupId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        ]
+      }
+    },
+    "/api/analysis/section": {
+      "get": {
+        "summary": "Scoped section analysis from real numeric/status-aware records",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "examId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "classId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "subjectId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "groupId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        ]
+      }
+    },
+    "/api/analysis/subject": {
+      "get": {
+        "summary": "Scoped subject analysis from real numeric/status-aware records",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "examId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "classId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "subjectId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "groupId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        ]
+      }
+    },
+    "/api/analysis/student/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        }
+      ],
+      "get": {
+        "summary": "Administrator full history / teacher own assigned-subject history",
+        "description": "",
+        "security": [
+          {
+            "SessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; no password hashes, OTPs, session tokens or provider secrets in response bodies."
+          },
+          "400": {
+            "description": "Invalid strict input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong role/school/class/section/subject/geography or initial password change required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incomplete, immutable identity, published read-only, legacy review, or unapproved CCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Configuration, database, delivery provider or authority verification unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "SessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "sms_session"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "pendingTeachers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PendingTeacher"
+            }
+          }
+        },
+        "required": [
+          "error",
+          "code"
+        ]
+      },
+      "PendingTeacher": {
+        "type": "object",
+        "properties": {
+          "teacherName": {
+            "type": "string"
+          },
+          "subjectName": {
+            "type": "string"
+          },
+          "pendingStudentCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "className": {
+            "type": "string"
+          },
+          "section": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Login": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "additionalProperties": false
+      },
+      "PasswordChange": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "writeOnly": true
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 128,
+            "writeOnly": true
+          },
+          "confirmPassword": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 128,
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword",
+          "confirmPassword"
+        ],
+        "additionalProperties": false
+      },
+      "SchoolRegistration": {
+        "type": "object",
+        "properties": {
+          "userType": {
+            "type": "string",
+            "enum": [
+              "HEADMASTER",
+              "PRINCIPAL"
+            ]
+          },
+          "udiseCode": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$",
+            "description": "Mandatory, unique and immutable; administrator username."
+          },
+          "schoolName": {
+            "type": "string"
+          },
+          "district": {
+            "type": "string"
+          },
+          "educationalDistrict": {
+            "type": "string"
+          },
+          "block": {
+            "type": "string"
+          },
+          "management": {
+            "type": "string",
+            "enum": [
+              "Government",
+              "Aided",
+              "Matric"
+            ]
+          },
+          "schoolType": {
+            "type": "string",
+            "enum": [
+              "Higher Secondary",
+              "Secondary",
+              "Middle",
+              "Elementary"
+            ]
+          },
+          "academicYear": {
+            "type": "string"
+          },
+          "adminName": {
+            "type": "string"
+          },
+          "adminEmail": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 128,
+            "writeOnly": true
+          },
+          "confirmPassword": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 128,
+            "writeOnly": true
+          },
+          "phone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userType",
+          "udiseCode",
+          "schoolName",
+          "district",
+          "educationalDistrict",
+          "block",
+          "management",
+          "schoolType",
+          "adminName",
+          "phone",
+          "password",
+          "confirmPassword"
+        ],
+        "additionalProperties": false
+      },
+      "OfficerRegistration": {
+        "type": "object",
+        "properties": {
+          "userType": {
+            "type": "string",
+            "enum": [
+              "CEO",
+              "DEO",
+              "BEO"
+            ]
+          },
+          "district": {
+            "type": "string"
+          },
+          "educationalDistrict": {
+            "type": "string"
+          },
+          "block": {
+            "type": "string"
+          },
+          "adminName": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 128,
+            "writeOnly": true
+          },
+          "confirmPassword": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 128,
+            "writeOnly": true
+          },
+          "phone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userType",
+          "district",
+          "adminName",
+          "phone",
+          "password",
+          "confirmPassword"
+        ],
+        "additionalProperties": false
+      },
+      "MarkInput": {
+        "type": "object",
+        "properties": {
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "nullable": true
+          },
+          "theoryScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "nullable": true
+          },
+          "practicalScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "nullable": true
+          },
+          "internalScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NUMERIC",
+              "AB",
+              "EXEMPT",
+              "PENDING"
+            ]
+          },
+          "isAbsent": {
+            "type": "boolean"
+          },
+          "isExempt": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MarkEntry": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "nullable": true
+          },
+          "theoryScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "nullable": true
+          },
+          "practicalScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "nullable": true
+          },
+          "internalScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NUMERIC",
+              "AB",
+              "EXEMPT",
+              "PENDING"
+            ]
+          },
+          "isAbsent": {
+            "type": "boolean"
+          },
+          "isExempt": {
+            "type": "boolean"
+          },
+          "enrollmentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "studentUuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "studentId": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "description": "An enrollment UUID or permanent legacy student ID is required; never ExamNo."
+      },
+      "MarkBatch": {
+        "type": "object",
+        "properties": {
+          "classId": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "examId": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "subjectId": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "entries": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/MarkEntry"
+            }
+          }
+        },
+        "required": [
+          "classId",
+          "examId",
+          "subjectId",
+          "entries"
+        ],
+        "additionalProperties": false
+      },
+      "StudentInput": {
+        "type": "object",
+        "properties": {
+          "studentId": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "classId": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "name": {
+            "type": "string"
+          },
+          "rollNo": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "admissionNo": {
+            "type": "string"
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "Male",
+              "Female",
+              "Other"
+            ]
+          },
+          "medium": {
+            "type": "string",
+            "enum": [
+              "Tamil",
+              "English"
+            ],
+            "nullable": true
+          },
+          "emisId": {
+            "type": "string"
+          },
+          "dob": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "guardianName": {
+            "type": "string"
+          },
+          "contact": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "classId",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "ClassInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "section": {
+            "type": "string"
+          },
+          "academicYear": {
+            "type": "string"
+          },
+          "groupCode": {
+            "type": "string"
+          },
+          "classTeacherId": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "room": {
+            "type": "string"
+          },
+          "subjects": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Exactly six distinct custom names required for classes 11\u201312."
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "ExamInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "month": {
+            "type": "string"
+          },
+          "year": {
+            "type": "string"
+          },
+          "term": {
+            "type": "string"
+          },
+          "academicYear": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "isPublished": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "TeacherInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 128,
+            "writeOnly": true
+          },
+          "designation": {
+            "type": "string"
+          },
+          "handlingSubjects": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "assignments": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": {
+              "type": "object",
+              "properties": {
+                "classId": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "subjectId": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                }
+              },
+              "required": [
+                "classId",
+                "subjectId"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "name",
+          "username",
+          "password",
+          "assignments"
+        ],
+        "additionalProperties": false
+      },
+      "RecoveryRequest": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "request"
+            ]
+          },
+          "username": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$"
+          }
+        },
+        "required": [
+          "action",
+          "username"
+        ],
+        "additionalProperties": false
+      },
+      "RecoveryReset": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "reset"
+            ]
+          },
+          "challengeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "otp": {
+            "type": "string",
+            "pattern": "^[0-9]{6}$",
+            "writeOnly": true
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 128,
+            "writeOnly": true
+          },
+          "confirmPassword": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 128,
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "action",
+          "challengeId",
+          "otp",
+          "newPassword",
+          "confirmPassword"
+        ],
+        "additionalProperties": false
+      },
+      "AcademicYearInput": {
+        "type": "object",
+        "properties": {
+          "startYear": {
+            "type": "integer",
+            "minimum": 1900,
+            "maximum": 9998
+          }
+        },
+        "required": [
+          "startYear"
+        ],
+        "additionalProperties": false
+      },
+      "MappingInput": {
+        "type": "object",
+        "properties": {
+          "classId": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "assignments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "hasPractical": {
+                  "type": "boolean"
+                },
+                "teacherId": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647,
+                  "nullable": true
+                }
+              },
+              "required": [
+                "id",
+                "hasPractical"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "classId",
+          "assignments"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

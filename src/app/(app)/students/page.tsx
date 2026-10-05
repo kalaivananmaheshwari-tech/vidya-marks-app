@@ -33,6 +33,7 @@ const emptyForm = {
 
 export default function StudentsPage() {
   const toast = useToast();
+  const me=useApi<{user:{role:string}|null}>("/api/auth/me");const isAdmin=me.data?.user?.role==="admin";
   const classes = useApi<{ classes: ClassListRow[] }>("/api/classes");
   const [classId, setClassId] = useState("");
   const [search, setSearch] = useState("");
@@ -111,7 +112,7 @@ export default function StudentsPage() {
       groupCode: cls?.groupCode ?? null,
       guardianName: form.guardianName || null,
       contact: form.contact || null,
-      avgPercentage: editing?.avgPercentage ?? 0,
+      avgPercentage: editing?.avgPercentage ?? null,
     };
     setData({
       students: editing
@@ -123,7 +124,7 @@ export default function StudentsPage() {
     try {
       await apiRequest(editing ? `/api/students/${editing.id}` : "/api/students", {
         method: editing ? "PATCH" : "POST",
-        body: JSON.stringify(form),
+        body: JSON.stringify({...form,classId:Number(form.classId),rollNo:form.rollNo?Number(form.rollNo):undefined}),
       });
       toast.push(editing ? "Student updated" : `${form.name} admitted`);
       await refresh();
@@ -159,7 +160,7 @@ export default function StudentsPage() {
         icon="🎓"
         title="Students"
         subtitle="Admission register with performance snapshot"
-        actions={
+        actions={isAdmin &&
           <div className="flex items-center gap-2">
             <Link href="/students/entry">
               <Button size="md">
@@ -257,36 +258,36 @@ export default function StudentsPage() {
                     <td className="px-3 py-3 text-right">
                       <span
                         className={`font-semibold tabular-nums ${
-                          student.avgPercentage >= 75
+                          (student.avgPercentage ?? -1) >= 75
                             ? "text-emerald-600"
-                            : student.avgPercentage >= 50
+                            : (student.avgPercentage ?? -1) >= 50
                               ? "text-slate-800"
-                              : student.avgPercentage > 0
+                              : student.avgPercentage !== null
                                 ? "text-rose-600"
                                 : "text-slate-400"
                         }`}
                       >
-                        {student.avgPercentage ? `${student.avgPercentage}%` : "—"}
+                        {student.avgPercentage!==null ? `${student.avgPercentage}%` : "—"}
                       </span>
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex justify-end items-center gap-1.5">
-                        <Link href={`/students/entry?classId=${student.classId}&studentId=${student.id}`}>
+                        {isAdmin && <Link href={`/students/entry?classId=${student.classId}&studentId=${student.id}`}>
                           <Button variant="secondary" size="sm">
                             📝 Entry &amp; Marks
                           </Button>
-                        </Link>
+                        </Link>}
                         <Link href={`/students/${student.id}`}>
                           <Button variant="ghost" size="sm">
                             Report
                           </Button>
                         </Link>
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(student)}>
+                        {isAdmin && <Button variant="ghost" size="sm" onClick={() => openEdit(student)}>
                           Edit
-                        </Button>
-                        <Button variant="danger" size="sm" onClick={() => setDeleting(student)}>
+                        </Button>}
+                        {isAdmin && <Button variant="danger" size="sm" onClick={() => setDeleting(student)}>
                           ✕
-                        </Button>
+                        </Button>}
                       </div>
                     </td>
                   </tr>
@@ -389,7 +390,7 @@ export default function StudentsPage() {
       <ConfirmDialog
         open={Boolean(deleting)}
         title={`Remove ${deleting?.name ?? ""}?`}
-        message="This deletes the student record and every mark recorded for them."
+        message="This student is archived. All enrollment, assessment and publication history is retained."
         onCancel={() => setDeleting(null)}
         onConfirm={confirmDelete}
         busy={busyDelete}

@@ -11,7 +11,7 @@ const SETUP_STEPS = [
     icon: "🏫",
     title: "Classes & sections",
     href: "/classes",
-    body: "Name of the class & section. If Class is 11 or 12: display Group Code + Sub 1 to Sub 6 entered by user. If Class is 6 to 10: Group Code is disabled and sets to Default 8 subjects (Language, English, Mathematics, Science, Social Science, PET, TNSMART, Science Tamil).",
+    body: "Name of the class & section. If Class is 11 or 12: display Group Code + Sub 1 to Sub 6 entered by user. If Class is 6 to 10: Group Code is disabled and sets to Default 8 subjects (Language, English, Mathematics, Science, Social Science, PET, TNSPARK, Science Tamil).",
     tip: "Classes 11 & 12 let you configure all 6 group subjects right in the modal.",
   },
   {
@@ -19,7 +19,7 @@ const SETUP_STEPS = [
     icon: "⚖️",
     title: "Mark assign",
     href: "/mark-assign",
-    body: "Select class and section. For each subject, set 'If this subject having practical?'. If Yes: Theory 70, Practical 20, Internal 10 (Total 100). Otherwise: Theory 90, Internal 10 (Total 100).",
+    body: "Select class and section. 6–7 / 11–12: practical 70+20+10, non-practical 90+10. 8–10: practical 75+25, non-practical Total /100 only. Server allocations are authoritative.",
     tip: "You can change practical allocation for any subject anytime.",
   },
   {
@@ -35,7 +35,7 @@ const SETUP_STEPS = [
     icon: "📝",
     title: "Student entry & marks",
     href: "/students/entry",
-    body: "Select Class, Section & Group code (if 11, 12 only). Subjects are automatically assigned with mark allotments (Theory 70/Prac 20/Int 10 or Theory 90/Int 10). Enter student details and marks. If marks were already entered for previous examinations, all previous examination details and marks are showed!",
+    body: "Select Class, Section & Group code (if 11, 12 only). Subjects use the approved class-specific mark allocation. Enter student details and marks. If marks were already entered for previous examinations, all previous examination details and marks are showed!",
     tip: "Previous exams are displayed with subject-by-subject marks, totals and pass/fail status.",
   },
   {
@@ -43,7 +43,7 @@ const SETUP_STEPS = [
     icon: "✍️",
     title: "Mark entry",
     href: "/marks",
-    body: "Pick class, exam and subject. Enter Theory (max 70 or 90), Practical (max 20 if practical=Yes) and Internal (max 10). Total out of 100 auto-sums automatically.",
+    body: "Pick class, exam and subject. Enter only the approved components for that class, or Total /100 for non-practical 8–10. AB and Exemption remain nonnumeric; incomplete entries are Pending.",
     tip: "Press Enter to jump to the next student. Full keyboard support.",
   },
   {
@@ -89,7 +89,7 @@ const ANALYSIS = [
 
 export default async function HelpPage() {
   const auth = await getAuth();
-  const udise = auth?.school.udiseCode ?? "";
+  const udise = auth?.school?.udiseCode ?? "";
   const isAdmin = auth?.user.role === "admin";
 
   return (
@@ -232,7 +232,7 @@ export default async function HelpPage() {
         </Card>
 
         <Card>
-          <h2 className="text-sm font-semibold text-slate-900">🏅 Grading scale used everywhere</h2>
+          <h2 className="text-sm font-semibold text-slate-900">🏅 Existing analytical display grades (not CCE)</h2>
           <div className="mt-3 space-y-1.5">
             {GRADE_SCALE.map((grade) => (
               <div key={grade.grade} className="flex items-center gap-3 text-sm">

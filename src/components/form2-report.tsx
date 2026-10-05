@@ -17,9 +17,9 @@ export type Form2Data = {
     passed: { male: number; female: number; total: number };
     passPercentage: { male: number; female: number; total: number };
     failed: { male: number; female: number; total: number };
-    prevExamPassPct: number;
+    prevExamPassPct: number | string;
     currExamPassPct: number;
-    schoolAverageMark: { prevExam: number; currExam: number };
+    schoolAverageMark: { prevExam: number | string; currExam: number | string };
   };
   breakdownTable: {
     mediumWiseFailed: { tamilMedium: number; englishMedium: number; total: number };
@@ -65,9 +65,9 @@ export type Form2Data = {
     passPercentage: string;
     centum: number | string;
     failOnlyThisSubject: number | string;
-    averageMark: number;
-    lowestMark: number;
-    highestMark: number;
+    averageMark: number | string;
+    lowestMark: number | string;
+    highestMark: number | string;
     prevExamPass: string;
     currExamPass: string;
   }>;
@@ -90,6 +90,7 @@ export default function Form2ReportView({ data }: { data: Form2Data }) {
 
   return (
     <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 print:border-none print:shadow-none print:p-0 text-black">
+      <p className="mb-3 text-[10px]">AB, Exemption and Pending are separate states, never numeric failures. Unknown gender/medium is included only in Total. A dash means not recorded or not applicable.</p>
       {/* Top Header matching Form - II */}
       <div className="border-b border-black pb-2.5">
         <div className="flex flex-wrap items-center justify-between text-xs font-bold uppercase tracking-wide">
@@ -110,6 +111,7 @@ export default function Form2ReportView({ data }: { data: Form2Data }) {
         </div>
       </div>
 
+      <p className="mt-2 text-center text-xs font-semibold">{data.classDisplay} · {data.examDisplay}</p>
       {/* TABLE 1: Main Performance Breakdown */}
       <div className="overflow-x-auto mt-3">
         <table className="official-table w-full text-[11px] text-black border-collapse border border-black text-center">
@@ -423,7 +425,7 @@ export default function Form2ReportView({ data }: { data: Form2Data }) {
       </div>
 
       {/* Official Signatures Footer */}
-      <div className="flex justify-between items-center pt-14 mt-6 px-8 text-xs font-bold text-black uppercase">
+      <div className="signature-block flex justify-between items-center pt-14 mt-6 px-8 text-xs font-bold text-black uppercase">
         <span>Class teacher sign</span>
         <span>HM/Principal sign</span>
       </div>

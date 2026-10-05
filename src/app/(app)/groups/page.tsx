@@ -238,8 +238,8 @@ export default function GroupsPage() {
 
       <ConfirmDialog
         open={Boolean(deleting)}
-        title={`Delete group ${deleting?.code ?? ""}?`}
-        message="Subjects linked to this group will also be removed, along with their marks. Classes will be reset to no group."
+        title={`Archive group ${deleting?.code ?? ""}?`}
+        message="The group is archived without deleting linked classes, subjects or historical assessments. Referenced groups may require review."
         onCancel={() => setDeleting(null)}
         onConfirm={confirmDelete}
         busy={busyDelete}

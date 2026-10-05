@@ -1,0 +1,8 @@
+"use client";
+import {useState} from "react";
+import {Button,Card,ErrorState,Field,Input,PageHeader,useToast} from "@/components/ui";
+import {apiRequest,useApi} from "@/lib/client";
+export default function AcademicYearsPage(){const toast=useToast();const years=useApi<{academicYears:Array<{id:string;label:string;startYear:number}>}>("/api/academic-years");const [start,setStart]=useState("");const [saving,setSaving]=useState(false);
+  async function add(event:React.FormEvent){event.preventDefault();setSaving(true);try{await apiRequest("/api/academic-years",{method:"POST",body:JSON.stringify({startYear:Number(start)})});toast.push("Future academic-year record added.");setStart("");await years.refresh();}catch(e){toast.push(e instanceof Error?e.message:"Could not add year.","error");}finally{setSaving(false);}}
+  return <><PageHeader icon="📅" title="Academic-year records" subtitle="Relational years, not a hard-coded enum. Existing enrollments and assessments retain their original year identity."/>{years.error && <ErrorState message={years.error} onRetry={years.refresh}/>}<Card><form onSubmit={add} className="flex flex-wrap items-end gap-4"><Field label="Future academic year start" hint="For example, 2041 creates 2041–2042."><Input required type="number" min={(years.data?.academicYears.at(-1)?.startYear ?? 2040)+1} max={9998} value={start} onChange={(e)=>setStart(e.target.value)}/></Field><Button type="submit" loading={saving}>Add future year</Button></form><ul className="mt-5 grid gap-2 sm:grid-cols-3">{years.data?.academicYears.map((y)=><li key={y.id} className="rounded-lg bg-slate-50 p-3 text-sm">{y.label}</li>)}</ul></Card></>;
+}

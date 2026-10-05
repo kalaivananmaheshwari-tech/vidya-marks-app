@@ -1,95 +1,35 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { classes, groups } from "@/db/schema";
-import { handleError, int, json, notFound, requireAuth, str } from "@/lib/api";
-
+import { handleError, HttpError, json, notFound, numParam, readJson, requireAdmin } from "@/lib/api";
+import { classSetupSchema } from "@/lib/setup-validation";
+import { assertTeacherReference } from "@/lib/authorization";
+import { audit } from "@/lib/audit";
 export const dynamic = "force-dynamic";
-
 type Ctx = { params: Promise<{ id: string }> };
-
-function isClass11or12(name: string): boolean {
-  const n = name.trim().toLowerCase();
-  return (
-    n === "11" ||
-    n === "12" ||
-    /\b(11|12)\b/.test(n) ||
-    /\b(xi|xii)\b/.test(n) ||
-    n.includes("11") ||
-    n.includes("12")
-  );
-}
-
 export async function PATCH(request: Request, { params }: Ctx) {
   try {
-    const { user } = await requireAuth();
-    const { id } = await params;
-    const body = await request.json();
-    const name = str(body.name);
-
-    let groupId: number | null | undefined = body.groupId === null || body.groupId === "" ? null : int(body.groupId);
-
-    if (name && isClass11or12(name)) {
-      const groupCode = str(body.groupCode)?.toUpperCase();
-      if (groupCode) {
-        const [existing] = await db
-          .select()
-          .from(groups)
-          .where(and(eq(groups.schoolId, user.schoolId), eq(groups.code, groupCode)))
-          .limit(1);
-
-        if (existing) {
-          groupId = existing.id;
-        } else {
-          const [newGroup] = await db
-            .insert(groups)
-            .values({
-              schoolId: user.schoolId,
-              code: groupCode,
-              name: str(body.groupName) ?? `Group ${groupCode}`,
-              stream: str(body.stream) ?? "Science",
-            })
-            .returning();
-          groupId = newGroup.id;
-        }
-      }
-    } else if (name && !isClass11or12(name)) {
-      // 6 to 10: group code disabled
-      groupId = null;
-    }
-
-    const [row] = await db
-      .update(classes)
-      .set({
-        name,
-        section: str(body.section)?.toUpperCase(),
-        groupId,
-        academicYear: str(body.academicYear),
-        room: body.room === "" ? null : str(body.room),
-        classTeacherId:
-          body.classTeacherId === null || body.classTeacherId === ""
-            ? null
-            : int(body.classTeacherId),
-      })
-      .where(and(eq(classes.id, Number(id)), eq(classes.schoolId, user.schoolId)))
-      .returning();
-    if (!row) return notFound("Class not found");
-    return json({ class: row });
-  } catch (error) {
-    return handleError(error);
-  }
+    const auth = await requireAdmin(); const id = numParam((await params).id)!;
+    const body = await readJson(request, classSetupSchema.partial());
+    const cls = await db.transaction(async (tx) => {
+      const [prior] = await tx.select().from(classes).where(and(eq(classes.id, id), eq(classes.schoolId, auth.school.id))).for("update");
+      if (!prior || prior.archivedAt) throw new HttpError("Class not found.", 404, "NOT_FOUND");
+      const [group] = prior.groupId ? await tx.select().from(groups).where(and(eq(groups.id, prior.groupId), eq(groups.schoolId, auth.school.id))).limit(1) : [];
+      if ((body.name && body.name !== prior.name) || (body.section && body.section.toUpperCase() !== prior.section) || (body.academicYear && body.academicYear !== prior.academicYear) || (body.groupId != null && body.groupId !== prior.groupId) || (body.groupCode && body.groupCode.toUpperCase() !== group?.code)) throw new HttpError("Class, section, group and academic year define an enrollment identity. Create a new class/year instead of changing it.", 409, "HISTORICAL_IDENTITY_LOCKED");
+      if (body.classTeacherId) await assertTeacherReference(auth.school.id, body.classTeacherId, tx);
+      const [row] = await tx.update(classes).set({ room: body.room === undefined ? prior.room : body.room || null, classTeacherId: body.classTeacherId === undefined ? prior.classTeacherId : body.classTeacherId }).where(and(eq(classes.id, id), eq(classes.schoolId, auth.school.id))).returning();
+      await audit(tx, auth, "class.updated", "classes", row.id, { classTeacherId: row.classTeacherId, room: row.room }); return row;
+    });
+    return json({ class: cls });
+  } catch (error) { return handleError(error); }
 }
-
 export async function DELETE(_request: Request, { params }: Ctx) {
   try {
-    const { user } = await requireAuth();
-    const { id } = await params;
-    const [row] = await db
-      .delete(classes)
-      .where(and(eq(classes.id, Number(id)), eq(classes.schoolId, user.schoolId)))
-      .returning();
-    if (!row) return notFound("Class not found");
-    return json({ ok: true });
-  } catch (error) {
-    return handleError(error);
-  }
+    const auth = await requireAdmin(); const id = numParam((await params).id)!;
+    const row = await db.transaction(async (tx) => {
+      const [cls] = await tx.update(classes).set({ archivedAt: new Date() }).where(and(eq(classes.id, id), eq(classes.schoolId, auth.school.id))).returning();
+      if (!cls) return null; await audit(tx, auth, "class.archived", "classes", id, { historicalDataPreserved: true }); return cls;
+    });
+    return row ? json({ ok: true, archived: true }) : notFound("Class not found.");
+  } catch (error) { return handleError(error); }
 }

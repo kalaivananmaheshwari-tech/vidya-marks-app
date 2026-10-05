@@ -17,18 +17,18 @@ const NAV: NavGroup[] = [
   {
     title: "Academic setup",
     items: [
-      { href: "/classes", label: "1. Classes & sections", icon: "🏫" },
-      { href: "/mark-assign", label: "2. Mark assign", icon: "⚖️" },
-      { href: "/staff", label: "3. Teachers", icon: "👩‍🏫" },
-      { href: "/groups", label: "Group codes", icon: "🧩" },
-      { href: "/subjects", label: "Subjects", icon: "📚" },
-      { href: "/exams", label: "Examinations", icon: "🗓️" },
+      { adminOnly: true, href: "/classes", label: "1. Classes & sections", icon: "🏫" },
+      { adminOnly: true, href: "/mark-assign", label: "2. Mark assign", icon: "⚖️" },
+      { adminOnly: true, href: "/staff", label: "3. Teachers", icon: "👩‍🏫" },
+      { adminOnly: true, href: "/groups", label: "Group codes", icon: "🧩" },
+      { adminOnly: true, href: "/subjects", label: "Subjects", icon: "📚" },
+      { adminOnly: true, href: "/exams", label: "Examinations", icon: "🗓️" },
     ],
   },
   {
     title: "Daily work",
     items: [
-      { href: "/students/entry", label: "Student entry & marks", icon: "📝" },
+      { adminOnly: true, href: "/students/entry", label: "Student entry & marks", icon: "📝" },
       { href: "/students", label: "Student register", icon: "🎓" },
       { href: "/marks", label: "Class mark sheet", icon: "✍️" },
     ],
@@ -50,7 +50,9 @@ const NAV: NavGroup[] = [
   {
     title: "Administration",
     items: [
-      { href: "/staff", label: "Teacher logins", icon: "👩‍🏫" },
+      { adminOnly: true, href: "/staff", label: "Teacher logins", icon: "👩‍🏫" },
+      { href: "/academic-years", label: "Academic years", icon: "📅", adminOnly: true },
+      { href: "/account", label: "Account security", icon: "🔐" },
       { href: "/help", label: "How to use", icon: "🧭" },
     ],
   },
@@ -62,6 +64,7 @@ export type ShellUser = {
   username: string;
   role: string;
   designation: string | null;
+  mustChangePassword?: boolean;
 };
 
 export type ShellSchool = {
@@ -88,6 +91,8 @@ export default function Shell({
   const [busy, setBusy] = useState(false);
 
   const isAdmin = user.role === "admin";
+  const isOfficer=["CEO","DEO","BEO"].includes(user.role);
+  const nav=user.mustChangePassword?[{title:"Account",items:[{href:"/account",label:"Change initial password",icon:"🔐"}]}]:isOfficer?[{title:"Geographic reports",items:[{href:"/geographic",label:`${user.role} school comparison`,icon:"🌐"},{href:"/account",label:"Account security",icon:"🔐"}]}]:NAV.map((g)=>({...g,items:g.items.filter((i)=>!i.adminOnly || isAdmin)})).filter((g)=>g.items.length);
   const initials = user.name
     .split(" ")
     .filter(Boolean)
@@ -125,7 +130,7 @@ export default function Shell({
       </div>
 
       <nav className="scroll-thin flex-1 space-y-5 overflow-y-auto px-3 pb-6">
-        {NAV.map((group) => (
+        {nav.map((group) => (
           <div key={group.title}>
             <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
               {group.title}
@@ -167,7 +172,7 @@ export default function Shell({
           </div>
         </div>
         <p className="mt-2 truncate text-[11px] text-slate-400">
-          {isAdmin ? "🏛️ School admin" : `🧑‍🏫 ${user.designation || "Teacher"}`}
+          {isOfficer?`🌐 ${user.role}`:isAdmin ? "🏛️ School admin" : `🧑‍🏫 ${user.designation || "Teacher"}`}
         </p>
         <button
           onClick={logout}
@@ -182,10 +187,10 @@ export default function Shell({
 
   return (
     <div className="flex min-h-screen">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 lg:block">{sidebar}</aside>
+      <aside className="no-print fixed inset-y-0 left-0 z-30 hidden w-64 lg:block">{sidebar}</aside>
 
       {open ? (
-        <div className="fixed inset-0 z-40 lg:hidden">
+        <div className="no-print fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setOpen(false)} />
           <div className="animate-fade-up absolute inset-y-0 left-0 w-72 shadow-2xl">{sidebar}</div>
         </div>
@@ -215,7 +220,7 @@ export default function Shell({
                 : "bg-emerald-50 text-emerald-700 ring-emerald-200",
             )}
           >
-            {isAdmin ? "Admin access" : "Teacher access"}
+            {isOfficer?`${user.role} scope`:isAdmin ? "Admin access" : "Assigned-subject access"}
           </span>
           <span
             className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-brand-500 to-violet-500 text-xs font-bold text-white shadow-sm"
@@ -235,8 +240,8 @@ export default function Shell({
           </button>
         </header>
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          <div className="animate-fade-up mx-auto w-full max-w-7xl space-y-6">{children}</div>
+        <main className="app-main flex-1 px-4 py-6 sm:px-6 lg:px-8">
+          <div className="animate-fade-up mx-auto w-full max-w-7xl space-y-6">{user.mustChangePassword && <p role="status" className="no-print rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Your temporary password must be changed. <Link href="/account" className="font-semibold underline">Open account security</Link></p>}{children}</div>
         </main>
       </div>
     </div>

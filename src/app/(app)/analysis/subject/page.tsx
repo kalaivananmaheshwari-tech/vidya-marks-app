@@ -24,6 +24,7 @@ type Response = {
 };
 
 export default function SubjectAnalysisPage() {
+  const me=useApi<{user:{role:string}|null}>("/api/auth/me");
   const exams = useApi<{ exams: ExamRow[] }>("/api/exams");
   const classes = useApi<{ classes: ClassListRow[] }>("/api/classes");
   const [examId, setExamId] = useState("");

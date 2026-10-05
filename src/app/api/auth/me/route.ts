@@ -1,9 +1,7 @@
 import { getAuth } from "@/lib/auth";
-import { json } from "@/lib/api";
-
+import { handleError, json } from "@/lib/api";
 export const dynamic = "force-dynamic";
-
 export async function GET() {
-  const auth = await getAuth();
-  return json({ user: auth?.user ?? null, school: auth?.school ?? null });
+  try { const auth = await getAuth(); return json({ user: auth?.user ?? null, school: auth?.school ?? null, geographicScope: auth?.geographicScope ?? null }); }
+  catch (error) { return handleError(error); }
 }

@@ -1,302 +1,44 @@
 "use client";
-
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { Button, Card, Field, Input, Select } from "@/components/ui";
-import { apiRequest } from "@/lib/client";
-import { ACADEMIC_YEARS, DEFAULT_ACADEMIC_YEAR } from "@/lib/academic";
-
-const STATES = [
-  "Andhra Pradesh", "Assam", "Bihar", "Chhattisgarh", "Delhi", "Goa", "Gujarat", "Haryana",
-  "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra",
-  "Odisha", "Punjab", "Rajasthan", "Tamil Nadu", "Telangana", "Uttar Pradesh", "Uttarakhand",
-  "West Bengal", "Other",
-];
-
-export default function RegisterForm() {
-  const router = useRouter();
-  const [form, setForm] = useState({
-    schoolName: "",
-    udiseCode: "",
-    academicYear: DEFAULT_ACADEMIC_YEAR,
-    district: "",
-    state: "Tamil Nadu",
-    adminName: "",
-    designation: "Principal",
-    email: "",
-    phone: "",
-    password: "",
-    confirmPassword: "",
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const udiseValid = /^\d{11}$/.test(form.udiseCode);
-  const udiseTouched = form.udiseCode.length > 0;
-  const passwordsMatch = form.password.length > 0 && form.password === form.confirmPassword;
-
-  const strength = useMemo(() => {
-    const p = form.password;
-    let score = 0;
-    if (p.length >= 6) score += 1;
-    if (p.length >= 10) score += 1;
-    if (/[A-Z]/.test(p) && /[a-z]/.test(p)) score += 1;
-    if (/\d/.test(p)) score += 1;
-    if (/[^A-Za-z0-9]/.test(p)) score += 1;
-    return Math.min(score, 4);
-  }, [form.password]);
-
-  function set<K extends keyof typeof form>(key: K, value: string) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
-
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    setError(null);
-    if (!udiseValid) return setError("UDISE code must be exactly 11 digits.");
-    if (form.password.length < 6) return setError("Password must be at least 6 characters.");
-    if (form.password !== form.confirmPassword) return setError("Passwords do not match.");
-
-    setLoading(true);
-    try {
-      await apiRequest("/api/auth/register", {
-        method: "POST",
-        body: JSON.stringify(form),
-      });
-      router.replace("/dashboard");
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not register the school");
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="w-full max-w-xl">
-      <div className="mb-6 flex items-center gap-3 lg:hidden">
-        <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-brand-600 to-violet-600 text-xl text-white shadow-lg">
-          🎓
-        </span>
-        <div>
-          <p className="text-lg font-semibold tracking-tight text-slate-900">Vidya Analytics</p>
-          <p className="text-xs text-slate-500">Register your school</p>
-        </div>
-      </div>
-
-      <Card className="p-6 sm:p-8">
-        <h2 className="text-xl font-semibold tracking-tight text-slate-900">Register your school</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          The UDISE code you enter becomes the <strong>admin username</strong> for this school.
-        </p>
-
-        <form onSubmit={submit} className="mt-6 space-y-5">
-          <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
-              School details
-            </p>
-            <Field label="Name of the school">
-              <Input
-                value={form.schoolName}
-                onChange={(e) => set("schoolName", e.target.value)}
-                placeholder="Govt. Higher Secondary School, Anna Nagar"
-                required
-              />
-            </Field>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field
-                label="UDISE code (11 digits)"
-                hint="This is your admin login username."
-              >
-                <div className="relative">
-                  <Input
-                    value={form.udiseCode}
-                    onChange={(e) => set("udiseCode", e.target.value.replace(/\D/g, "").slice(0, 11))}
-                    placeholder="33064500112"
-                    inputMode="numeric"
-                    className={
-                      udiseTouched
-                        ? udiseValid
-                          ? "border-emerald-300 pr-24 focus:ring-emerald-100"
-                          : "border-amber-300 pr-24 focus:ring-amber-100"
-                        : "pr-24"
-                    }
-                    required
-                  />
-                  <span
-                    className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold tabular-nums ${
-                      udiseValid ? "text-emerald-600" : "text-slate-400"
-                    }`}
-                  >
-                    {udiseValid ? "✓" : `${form.udiseCode.length}/11`}
-                  </span>
-                </div>
-              </Field>
-
-              <Field
-                label="Academic Year (Select 15 Years)"
-                hint="From 2026-2027 to consecutive 15 academic years"
-              >
-                <Select
-                  value={form.academicYear}
-                  onChange={(e) => set("academicYear", e.target.value)}
-                  className="font-semibold text-brand-900"
-                  required
-                >
-                  {ACADEMIC_YEARS.map((yr) => (
-                    <option key={yr} value={yr}>
-                      {yr}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="District">
-                <Input
-                  value={form.district}
-                  onChange={(e) => set("district", e.target.value)}
-                  placeholder="Coimbatore"
-                />
-              </Field>
-              <Field label="State">
-                <select
-                  value={form.state}
-                  onChange={(e) => set("state", e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                >
-                  {STATES.map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-          </div>
-
-          <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
-              Admin account (Principal / Headmaster)
-            </p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Your name">
-                <Input
-                  value={form.adminName}
-                  onChange={(e) => set("adminName", e.target.value)}
-                  placeholder="Dr. Meera Krishnan"
-                  required
-                />
-              </Field>
-              <Field label="Designation">
-                <select
-                  value={form.designation}
-                  onChange={(e) => set("designation", e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                >
-                  <option>Principal</option>
-                  <option>Headmaster</option>
-                  <option>Headmistress</option>
-                  <option>Correspondent</option>
-                </select>
-              </Field>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Official email (optional)">
-                <Input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => set("email", e.target.value)}
-                  placeholder="office@school.edu"
-                />
-              </Field>
-              <Field label="Phone (optional)">
-                <Input
-                  value={form.phone}
-                  onChange={(e) => set("phone", e.target.value)}
-                  placeholder="+91 98400 00000"
-                />
-              </Field>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Create password">
-                <Input
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => set("password", e.target.value)}
-                  placeholder="At least 6 characters"
-                  autoComplete="new-password"
-                  required
-                />
-              </Field>
-              <Field label="Confirm password">
-                <Input
-                  type="password"
-                  value={form.confirmPassword}
-                  onChange={(e) => set("confirmPassword", e.target.value)}
-                  placeholder="Repeat password"
-                  autoComplete="new-password"
-                  className={
-                    form.confirmPassword.length > 0
-                      ? passwordsMatch
-                        ? "border-emerald-300"
-                        : "border-rose-300"
-                      : undefined
-                  }
-                  required
-                />
-              </Field>
-            </div>
-
-            {form.password ? (
-              <div>
-                <div className="flex gap-1">
-                  {[0, 1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className={`h-1.5 flex-1 rounded-full transition ${
-                        i < strength
-                          ? strength <= 1
-                            ? "bg-rose-400"
-                            : strength === 2
-                              ? "bg-amber-400"
-                              : strength === 3
-                                ? "bg-lime-500"
-                                : "bg-emerald-500"
-                          : "bg-slate-200"
-                      }`}
-                    />
-                  ))}
-                </div>
-                <p className="mt-1 text-[11px] text-slate-500">
-                  {strength <= 1 ? "Weak" : strength === 2 ? "Fair" : strength === 3 ? "Good" : "Strong"}{" "}
-                  password
-                  {form.confirmPassword && !passwordsMatch ? " · passwords do not match yet" : ""}
-                </p>
-              </div>
-            ) : null}
-          </div>
-
-          {error ? (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-              {error}
-            </div>
-          ) : null}
-
-          <Button type="submit" className="w-full" loading={loading}>
-            {loading ? "Creating your workspace…" : "Register school & open dashboard"}
-          </Button>
-
-          <p className="text-center text-sm text-slate-500">
-            Already registered?{" "}
-            <Link href="/login" className="font-semibold text-brand-600 hover:underline">
-              Sign in here
-            </Link>
-          </p>
-        </form>
-      </Card>
-    </div>
-  );
+import {useRouter} from "next/navigation";
+import {useState} from "react";
+import {Button,Card,Field,Input,Select} from "@/components/ui";
+import {apiRequest,useApi} from "@/lib/client";
+import {DEFAULT_ACADEMIC_YEAR} from "@/lib/academic";
+import {REGISTRATION_USER_TYPES,SCHOOL_MANAGEMENTS,SCHOOL_TYPES} from "@/lib/domain/geography";
+export default function RegisterForm(){
+  const router=useRouter();const years=useApi<{academicYears:Array<{id:string;label:string}>}>("/api/academic-years");
+  const [form,setForm]=useState({userType:"HEADMASTER",schoolName:"",udiseCode:"",district:"",educationalDistrict:"",block:"",management:"Government",schoolType:"Secondary",academicYear:DEFAULT_ACADEMIC_YEAR,adminName:"",phone:"",email:"",password:"",confirmPassword:""});
+  const [loading,setLoading]=useState(false);const [error,setError]=useState<string|null>(null);
+  const school=["HEADMASTER","PRINCIPAL"].includes(form.userType);
+  const educational=school || ["DEO","BEO"].includes(form.userType);const block=school || form.userType==="BEO";
+  function set(key:keyof typeof form,value:string){setForm((old)=>({...old,[key]:value}));}
+  async function submit(event:React.FormEvent){event.preventDefault();setError(null);setLoading(true);try{
+    const {userType,adminName,district,phone,email,password,confirmPassword}=form;
+    await apiRequest("/api/auth/register",{method:"POST",body:JSON.stringify({userType,adminName,district,phone,email,password,confirmPassword,...(educational?{educationalDistrict:form.educationalDistrict}:{}),...(block?{block:form.block}:{}),...(school?{schoolName:form.schoolName,udiseCode:form.udiseCode,management:form.management,schoolType:form.schoolType,academicYear:form.academicYear,state:"Tamil Nadu",designation:userType}:{})})});
+    router.replace("/dashboard");router.refresh();
+  }catch(e){setError(e instanceof Error?e.message:"Registration could not be submitted.");}finally{setLoading(false);}}
+  return <div className="w-full max-w-xl"><Card className="p-6 sm:p-8"><h2 className="text-xl font-semibold text-slate-900">Register your school</h2><p className="mt-1 text-sm text-slate-500">UDISE is mandatory, unique and immutable. Teachers receive individual accounts and assignments from their school administrator.</p>
+    <form onSubmit={submit} className="mt-6 space-y-5">
+      <Field label="User Type"><Select value={form.userType} onChange={(e)=>set("userType",e.target.value)}>{REGISTRATION_USER_TYPES.map((r)=><option key={r} value={r}>{r}</option>)}</Select></Field>
+      {!school && <div role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{form.userType} authority requires verified activation. Public privileged self-registration is not enabled; submitting this form cannot grant access.</div>}
+      <section className="grid gap-4 sm:grid-cols-2" aria-label="Registered geographic scope">
+        <Field label="District"><Input required value={form.district} onChange={(e)=>set("district",e.target.value)} placeholder="Coimbatore" maxLength={150}/></Field>
+        {educational && <Field label="Educational District"><Input required value={form.educationalDistrict} onChange={(e)=>set("educationalDistrict",e.target.value)} placeholder="Pollachi" maxLength={150}/></Field>}
+        {block && <Field label="Block"><Input required value={form.block} onChange={(e)=>set("block",e.target.value)} placeholder="Kinathukadavu" maxLength={150}/></Field>}
+      </section>
+      {school && <section className="space-y-4 rounded-xl bg-slate-50 p-4" aria-label="School details">
+        <Field label="Name of the school"><Input required value={form.schoolName} onChange={(e)=>set("schoolName",e.target.value)} maxLength={150}/></Field>
+        <Field label="UDISE code (11 digits)" hint="Becomes the school admin username and cannot be changed."><Input required value={form.udiseCode} onChange={(e)=>set("udiseCode",e.target.value.replace(/\D/g,"").slice(0,11))} inputMode="numeric" pattern="[0-9]{11}" minLength={11} maxLength={11}/></Field>
+        <div className="grid gap-4 sm:grid-cols-2"><Field label="School Management"><Select value={form.management} onChange={(e)=>set("management",e.target.value)}>{SCHOOL_MANAGEMENTS.map((m)=><option key={m}>{m}</option>)}</Select></Field><Field label="School Type"><Select value={form.schoolType} onChange={(e)=>set("schoolType",e.target.value)}>{SCHOOL_TYPES.map((t)=><option key={t}>{t}</option>)}</Select></Field></div>
+        <Field label="Academic Year" hint="Relational records, initially 2026–2027 through 2040–2041; future years can be added by an administrator."><Select required value={form.academicYear} onChange={(e)=>set("academicYear",e.target.value)} disabled={years.loading || Boolean(years.error)}>{years.data?.academicYears.map((y)=><option key={y.id} value={y.label}>{y.label}</option>)}</Select></Field>
+        {years.error && <p role="alert" className="text-sm text-rose-700">Academic years could not be loaded. Database readiness is required.</p>}
+      </section>}
+      <div className="grid gap-4 sm:grid-cols-2"><Field label="Your name"><Input required value={form.adminName} onChange={(e)=>set("adminName",e.target.value)} maxLength={150}/></Field><Field label="Registered Admin Contact Number" hint="OTP recovery uses only this registered mobile number."><Input required type="tel" value={form.phone} onChange={(e)=>set("phone",e.target.value)} placeholder="9840012345" minLength={10} maxLength={20}/></Field></div>
+      <Field label="Official email (optional)"><Input type="email" value={form.email} onChange={(e)=>set("email",e.target.value)}/></Field>
+      <div className="grid gap-4 sm:grid-cols-2"><Field label="Create password"><Input required type="password" autoComplete="new-password" value={form.password} onChange={(e)=>set("password",e.target.value)} minLength={10} maxLength={128} placeholder="At least 10 characters"/></Field><Field label="Confirm password"><Input required type="password" autoComplete="new-password" value={form.confirmPassword} onChange={(e)=>set("confirmPassword",e.target.value)} minLength={10} maxLength={128}/></Field></div>
+      {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+      <Button type="submit" className="w-full" loading={loading} disabled={school && (years.loading || Boolean(years.error))}>{school?"Register school & open dashboard":"Submit for verified activation"}</Button>
+      <p className="text-center text-sm text-slate-500">Already registered? <Link href="/login" className="font-semibold text-brand-600">Sign in here</Link></p>
+    </form></Card></div>;
 }

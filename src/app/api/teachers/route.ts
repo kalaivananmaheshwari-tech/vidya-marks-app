@@ -1,105 +1,44 @@
-import { asc, eq } from "drizzle-orm";
+import { z } from "zod";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { users } from "@/db/schema";
-import { handleError, json, requireAdmin, requireAuth, str } from "@/lib/api";
+import { users, teacherSubjectAssignments } from "@/db/schema";
+import { handleError, HttpError, idSchema, json, readJson, requireAdmin } from "@/lib/api";
 import { hashPassword } from "@/lib/auth";
-import { classCountByTeacher, subjectCountByTeacher } from "@/lib/counts";
-
+import { classCountByTeacher } from "@/lib/counts";
+import { addMembership } from "@/lib/relations";
+import { setTeacherMapping, ensureMappedActiveTeachers } from "@/lib/mapping-service";
+import { audit } from "@/lib/audit";
 export const dynamic = "force-dynamic";
-
-const USERNAME_RE = /^[a-zA-Z0-9._-]{4,32}$/;
-
+const input = z.object({ name: z.string().trim().min(1).max(150), username: z.string().trim().regex(/^[a-zA-Z0-9._-]{4,64}$/), password: z.string().min(10).max(128), designation: z.string().trim().max(100).optional(), customDesignation: z.string().trim().max(100).optional(), email: z.union([z.string().email(), z.literal("")]).optional(), phone: z.string().trim().max(20).optional(), handlingSubjects: z.string().trim().max(500).optional(), assignments: z.array(z.object({ classId: idSchema, subjectId: idSchema }).strict()).min(1).max(50) }).strict();
+const safeFields = { id: users.id, name: users.name, username: users.username, email: users.email, role: users.role, designation: users.designation, phone: users.phone, handlingSubjects: users.handlingSubjects, isActive: users.isActive, lastLoginAt: users.lastLoginAt };
 export async function GET() {
   try {
-    const { user } = await requireAuth();
-    const [rows, classCounts, subjectCounts] = await Promise.all([
-      db
-        .select({
-          id: users.id,
-          name: users.name,
-          username: users.username,
-          email: users.email,
-          role: users.role,
-          designation: users.designation,
-          phone: users.phone,
-          handlingSubjects: users.handlingSubjects,
-          isActive: users.isActive,
-          lastLoginAt: users.lastLoginAt,
-        })
-        .from(users)
-        .where(eq(users.schoolId, user.schoolId))
-        .orderBy(asc(users.role), asc(users.name)),
-      classCountByTeacher(user.schoolId),
-      subjectCountByTeacher(user.schoolId),
+    const auth = await requireAdmin();
+    const [rows, classCounts, mappings] = await Promise.all([
+      db.select(safeFields).from(users).where(eq(users.schoolId, auth.school.id)).orderBy(asc(users.role), asc(users.name)),
+      classCountByTeacher(auth.school.id), db.select().from(teacherSubjectAssignments).where(eq(teacherSubjectAssignments.schoolId, auth.school.id)),
     ]);
-
-    return json({
-      teachers: rows.map((row) => ({
-        ...row,
-        classCount: classCounts.get(row.id) ?? 0,
-        subjectCount: subjectCounts.get(row.id) ?? 0,
-      })),
-    });
-  } catch (error) {
-    return handleError(error);
-  }
+    return json({ teachers: rows.map((r) => ({ ...r, classCount: classCounts.get(r.id) ?? 0, subjectCount: mappings.filter((m) => m.teacherId === r.id).length, assignments: mappings.filter((m) => m.teacherId === r.id).map((m) => ({ classId: m.classId, subjectId: m.subjectId })) })) });
+  } catch (error) { return handleError(error); }
 }
-
-/** Only the school admin can create teacher logins. */
 export async function POST(request: Request) {
   try {
-    const { user } = await requireAdmin();
-    const body = await request.json();
-    const name = str(body.name);
-    const username = str(body.username)?.toLowerCase();
-    const password = str(body.password);
-
-    if (!name) return json({ error: "Teacher name is required." }, 400);
-    if (!username || !USERNAME_RE.test(username)) {
-      return json(
-        { error: "Username must be 4-32 characters using letters, numbers, dot, dash or underscore." },
-        400,
-      );
-    }
-    if (!password || password.length < 6) {
-      return json({ error: "Password must be at least 6 characters." }, 400);
-    }
-
-    const [taken] = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.username, username))
-      .limit(1);
-    if (taken) return json({ error: `Username "${username}" is already taken.` }, 409);
-
-    const [row] = await db
-      .insert(users)
-      .values({
-        schoolId: user.schoolId,
-        username,
-        name,
-        passwordHash: hashPassword(password),
-        role: "teacher",
-        designation: str(body.designation) ?? null,
-        email: str(body.email) ?? null,
-        phone: str(body.phone) ?? null,
-        handlingSubjects: str(body.handlingSubjects) ?? null,
-        mustChangePassword: true,
-      })
-      .returning({
-        id: users.id,
-        name: users.name,
-        username: users.username,
-        email: users.email,
-        role: users.role,
-        designation: users.designation,
-        phone: users.phone,
-        handlingSubjects: users.handlingSubjects,
-        isActive: users.isActive,
-        lastLoginAt: users.lastLoginAt,
-      });
-    return json({ teacher: { ...row, classCount: 0, subjectCount: 0 } }, 201);
-  } catch (error) {
-    return handleError(error);
-  }
+    const auth = await requireAdmin(); const body = await readJson(request, input);
+    const result = await db.transaction(async (tx) => {
+      const [user] = await tx.insert(users).values({ schoolId: auth.school.id, username: body.username.toLowerCase(), name: body.name, passwordHash: hashPassword(body.password), role: "teacher", userType: "TEACHER", designation: body.designation || null, email: body.email || null, phone: body.phone || null, handlingSubjects: body.handlingSubjects || null, mustChangePassword: true }).returning(safeFields);
+      await addMembership(tx, auth.school.id, user.id, user.username, "TEACHER");
+      const affected: number[] = [];
+      const unique=new Set(body.assignments.map((a)=>`${a.classId}:${a.subjectId}`));
+      if(unique.size!==body.assignments.length) throw new HttpError("Duplicate teacher assignment.");
+      for (const mapping of [...body.assignments].sort((a,b)=>a.classId-b.classId || a.subjectId-b.subjectId)) {
+        const [prior] = await tx.select().from(teacherSubjectAssignments).where(and(eq(teacherSubjectAssignments.schoolId, auth.school.id), eq(teacherSubjectAssignments.classId, mapping.classId), eq(teacherSubjectAssignments.subjectId, mapping.subjectId))).limit(1);
+        if (prior) affected.push(prior.teacherId);
+        await setTeacherMapping(tx, auth, mapping.classId, mapping.subjectId, user.id);
+      }
+      await ensureMappedActiveTeachers(tx, auth.school.id, [...affected, user.id]);
+      await audit(tx, auth, "teacher.created", "users", user.id, { mappingCount: body.assignments.length });
+      return { ...user, classCount: 0, subjectCount: body.assignments.length };
+    });
+    return json({ teacher: result }, 201);
+  } catch (error) { return handleError(error); }
 }

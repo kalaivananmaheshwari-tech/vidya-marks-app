@@ -13,6 +13,7 @@ import {
   TableSkeleton,
   useToast,
 } from "@/components/ui";
+import {allocationFor,classNumber} from "@/lib/domain/marks";
 import { apiRequest, useApi } from "@/lib/client";
 import type { ClassListRow, MarkAssignItem, TeacherRow } from "@/lib/shared-types";
 
@@ -56,14 +57,7 @@ export default function MarkAssignPage() {
     setSubjectsState((prev) =>
       prev.map((s) => {
         if (s.id !== subjectId) return s;
-        return {
-          ...s,
-          hasPractical,
-          theoryMarks: hasPractical ? 70 : 90,
-          practicalMarks: hasPractical ? 20 : 0,
-          internalMarks: 10,
-          maxMarks: 100,
-        };
+        return {...s,...allocationFor(classNumber(selectedClass?.name ?? "") ?? 6,hasPractical)};
       }),
     );
     setDirty(true);
@@ -111,7 +105,7 @@ export default function MarkAssignPage() {
       <PageHeader
         icon="⚖️"
         title="Mark Assign"
-        subtitle="Select class and section, then set whether each subject has practical. Yes: Theory 70 + Practical 20 + Internal 10. No: Theory 90 + Internal 10."
+        subtitle="Choose persisted Class + Section + Subject teacher mappings. Approved allocations depend on class; changing an allocation after marks exist is blocked."
         actions={
           <div className="flex items-center gap-2">
             {dirty ? <Badge tone="amber">Unsaved changes</Badge> : null}
@@ -184,14 +178,14 @@ export default function MarkAssignPage() {
                 🔬 Practical Subjects (Yes)
               </p>
               <p className="mt-1 text-2xl font-bold text-emerald-900">{practicalCount}</p>
-              <p className="text-xs text-emerald-700">Theory: 70 · Practical: 20 · Internal: 10 = 100</p>
+              <p className="text-xs text-emerald-700">6–7 / 11–12: 70 + 20 + 10 · 8–10: 75 + 25</p>
             </Card>
             <Card className="border-brand-100 bg-brand-50/50 p-4">
               <p className="text-[11px] font-bold uppercase tracking-wide text-brand-800">
                 📖 Non-Practical Subjects (No)
               </p>
               <p className="mt-1 text-2xl font-bold text-brand-900">{theoryCount}</p>
-              <p className="text-xs text-brand-700">Theory: 90 · Internal: 10 = 100</p>
+              <p className="text-xs text-brand-700">6–7 / 11–12: 90 + 10 · 8–10: Total /100 only</p>
             </Card>
             <Card className="border-slate-200 bg-white p-4">
               <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
@@ -264,28 +258,7 @@ export default function MarkAssignPage() {
                       </td>
 
                       <td className="px-3 py-3.5">
-                        {subject.hasPractical ? (
-                          <div className="flex items-center gap-2">
-                            <span className="rounded-lg bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200">
-                              Theory: 70
-                            </span>
-                            <span className="rounded-lg bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800 ring-1 ring-teal-200">
-                              Practical: 20
-                            </span>
-                            <span className="rounded-lg bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-800 ring-1 ring-violet-200">
-                              Internal: 10
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="rounded-lg bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-800 ring-1 ring-brand-200">
-                              Theory: 90
-                            </span>
-                            <span className="rounded-lg bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-800 ring-1 ring-violet-200">
-                              Internal: 10
-                            </span>
-                          </div>
-                        )}
+                        <span className="text-xs font-semibold">{subject.theoryMarks===0 && !subject.hasPractical?"Total /100 only":`Theory ${subject.theoryMarks}${subject.practicalMarks?` + Practical ${subject.practicalMarks}`:""}${subject.internalMarks?` + Internal ${subject.internalMarks}`:""} = 100`}</span>
                       </td>
 
                       <td className="px-3 py-3.5">
@@ -297,7 +270,7 @@ export default function MarkAssignPage() {
                           className="w-48 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
                         >
                           <option value="">Select teacher</option>
-                          {teachers.data?.teachers.map((t) => (
+                          {teachers.data?.teachers.filter((t)=>t.role==="teacher" && t.isActive).map((t) => (
                             <option key={t.id} value={t.id}>
                               {t.name}
                             </option>

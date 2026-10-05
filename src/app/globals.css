@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@fontsource/noto-sans-tamil/400.css";
 
 @theme {
   --color-brand-50: #eef2ff;
@@ -21,7 +22,7 @@ body {
 
 body {
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    "Noto Sans", sans-serif;
+    "Noto Sans", "Noto Sans Tamil", sans-serif;
   background-color: #f5f6fb;
   background-image:
     radial-gradient(1000px 500px at 10% -10%, rgba(99, 102, 241, 0.13), transparent 60%),
@@ -174,3 +175,20 @@ input[type="number"] {
     margin: 8mm;
   }
 }
+
+.print-only { display:none; }
+@media print {
+  .print-only {display:inline !important;}
+  .app-main {margin:0 !important;padding:0 !important;max-width:none !important;}
+  .app-main > div {max-width:none !important;animation:none !important;}
+  input,select,textarea,button {display:none !important;}
+  .official-table {min-width:0 !important;max-width:100% !important;table-layout:auto;}
+  .official-table th,.official-table td {min-width:0 !important;padding:1mm .7mm !important;font-size:8pt !important;line-height:1.25;white-space:normal !important;overflow-wrap:anywhere;}
+  .print-page .overflow-x-auto {overflow:visible !important;}
+  .print-page {break-before:auto;}
+  .signature-block {break-inside:avoid;page-break-inside:avoid;}
+  .report-page-break {break-before:page;page-break-before:always;}
+  @page {size:A4 portrait;margin:8mm;}
+}
+
+@media print { h1.print-only,div.print-only {display:block !important;} }

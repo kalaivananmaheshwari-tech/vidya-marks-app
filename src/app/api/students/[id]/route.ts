@@ -1,49 +1,20 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { students } from "@/db/schema";
-import { handleError, int, json, notFound, requireAuth, str } from "@/lib/api";
-
+import { handleError, json, notFound, numParam, readJson, requireAdmin } from "@/lib/api";
+import { archiveStudent, saveStudent, studentSchema } from "@/lib/student-service";
 export const dynamic = "force-dynamic";
-
 type Ctx = { params: Promise<{ id: string }> };
-
 export async function PATCH(request: Request, { params }: Ctx) {
   try {
-    const { user } = await requireAuth();
-    const { id } = await params;
-    const body = await request.json();
-    const [row] = await db
-      .update(students)
-      .set({
-        admissionNo: str(body.admissionNo),
-        name: str(body.name),
-        rollNo: int(body.rollNo),
-        gender: str(body.gender),
-        dob: body.dob === "" ? null : str(body.dob),
-        classId: int(body.classId),
-        guardianName: body.guardianName === "" ? null : str(body.guardianName),
-        contact: body.contact === "" ? null : str(body.contact),
-      })
-      .where(and(eq(students.id, Number(id)), eq(students.schoolId, user.schoolId)))
-      .returning();
-    if (!row) return notFound("Student not found");
-    return json({ student: row });
-  } catch (error) {
-    return handleError(error);
-  }
+    const auth = await requireAdmin(); const id = numParam((await params).id)!;
+    const body = await readJson(request, studentSchema.omit({ studentId: true }).partial());
+    const [prior] = await db.select().from(students).where(and(eq(students.id, id), eq(students.schoolId, auth.school.id), isNull(students.archivedAt))).limit(1);
+    if (!prior) return notFound("Student not found.");
+    return json(await saveStudent(auth, { studentId: id, classId: body.classId ?? prior.classId, name: body.name ?? prior.name, ...body }));
+  } catch (error) { return handleError(error); }
 }
-
 export async function DELETE(_request: Request, { params }: Ctx) {
-  try {
-    const { user } = await requireAuth();
-    const { id } = await params;
-    const [row] = await db
-      .delete(students)
-      .where(and(eq(students.id, Number(id)), eq(students.schoolId, user.schoolId)))
-      .returning();
-    if (!row) return notFound("Student not found");
-    return json({ ok: true });
-  } catch (error) {
-    return handleError(error);
-  }
+  try { const auth = await requireAdmin(); return json(await archiveStudent(auth, numParam((await params).id)!)); }
+  catch (error) { return handleError(error); }
 }

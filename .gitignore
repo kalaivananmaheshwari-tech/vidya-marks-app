@@ -36,3 +36,12 @@ next-env.d.ts
 # local database
 .pgdata
 
+
+# verification artifacts / local data
+/playwright-report/
+/test-results/
+/artifacts/
+*.log
+
+# Native local verification database and transient credentials
+/.cache/

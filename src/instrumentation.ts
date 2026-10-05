@@ -1,32 +1,13 @@
-/**
- * Runs once when the Next.js server process boots (before the first request).
- *
- * Warming the database here means a visitor who opens the app immediately after a
- * restart gets a fully working page instead of a cold-start error.
- */
 export async function register() {
-  if (process.env.NEXT_RUNTIME !== "nodejs") return;
-  // Skip during build time
-  if (
-    process.env.NEXT_PHASE === "phase-production-build" ||
-    process.env.npm_lifecycle_event === "build"
-  ) {
-    return;
-  }
-
+  if (process.env.NEXT_RUNTIME !== "nodejs" || process.env.NEXT_PHASE === "phase-production-build" || process.env.npm_lifecycle_event === "build") return;
   try {
     const { ensureSchema } = await import("@/db/bootstrap");
     const { ensureSeed } = await import("@/db/seed");
-
-    await ensureSchema();
-    const result = await ensureSeed();
-    console.log(
-      result.seeded
-        ? "[bootstrap] schema ready, demo school seeded"
-        : `[bootstrap] schema ready (${result.reason ?? "ok"})`,
-    );
-  } catch (error) {
-    // Never block server startup — requests retry the bootstrap lazily.
-    console.error("[bootstrap] deferred:", error instanceof Error ? error.message : error);
+    await ensureSchema(); const result = await ensureSeed();
+    console.log("[bootstrap] schema ready", { demoSeeded: result.seeded });
+  } catch {
+    // Readiness stays unavailable until configuration/migrations are resolved.
+    // Never log database connection strings or underlying provider errors.
+    console.error("[bootstrap] database not ready; check configuration and migrations");
   }
 }

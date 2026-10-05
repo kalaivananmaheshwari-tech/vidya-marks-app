@@ -1,0 +1,2 @@
+import {defineConfig} from "@playwright/test";
+export default defineConfig({testDir:"./e2e",timeout:60000,expect:{timeout:15000},workers:1,fullyParallel:false,retries:0,reporter:"list",use:{baseURL:process.env.API_BASE_URL ?? "http://127.0.0.1:3000",headless:true,viewport:{width:1366,height:900},trace:"off",screenshot:"off",launchOptions:{executablePath:process.env.PLAYWRIGHT_EXECUTABLE_PATH,args:process.env.VIDYA_CHROMIUM_ARGS?JSON.parse(process.env.VIDYA_CHROMIUM_ARGS) as string[]:[]}},outputDir:".cache/browser-results"});

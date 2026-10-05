@@ -1,6 +1,8 @@
-import { and, eq, isNotNull, sql } from "drizzle-orm";
+import {approvedScoringCondition} from "@/lib/scoring-policy";
+import {markValues} from "@/db/mark-values";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { classes, marks, students, subjects, users } from "@/db/schema";
+import { classes, marks, students, subjects, users,studentEnrollments } from "@/db/schema";
 
 /** Build a lookup map from grouped count rows. */
 function toMap(rows: Array<{ key: number | null; value: number }>): Map<number, number> {
@@ -34,7 +36,7 @@ export async function studentCountByGroup(schoolId: number) {
     .select({ key: classes.groupId, value: sql<number>`count(*)::int` })
     .from(students)
     .innerJoin(classes, eq(classes.id, students.classId))
-    .where(eq(students.schoolId, schoolId))
+    .where(and(eq(students.schoolId, schoolId), isNull(students.archivedAt)))
     .groupBy(classes.groupId);
   return toMap(rows);
 }
@@ -43,25 +45,25 @@ export async function studentCountByClass(schoolId: number) {
   const rows = await db
     .select({ key: students.classId, value: sql<number>`count(*)::int` })
     .from(students)
-    .where(eq(students.schoolId, schoolId))
+    .where(and(eq(students.schoolId, schoolId), isNull(students.archivedAt)))
     .groupBy(students.classId);
   return toMap(rows);
 }
 
-export async function markCountBySubject(schoolId: number) {
+export async function markCountBySubject(schoolId: number, teacherId?: number) {
   const rows = await db
     .select({ key: marks.subjectId, value: sql<number>`count(*)::int` })
     .from(marks)
-    .where(eq(marks.schoolId, schoolId))
+    .where(and(eq(marks.schoolId, schoolId), teacherId ? eq(marks.enteredById,teacherId):undefined,teacherId ? sql`exists(select 1 from teacher_subject_assignments a where a.school_id=${schoolId} and a.teacher_id=${teacherId} and a.class_subject_id=${marks.classSubjectId})` : undefined))
     .groupBy(marks.subjectId);
   return toMap(rows);
 }
 
-export async function markCountByExam(schoolId: number) {
+export async function markCountByExam(schoolId: number, teacherId?: number) {
   const rows = await db
     .select({ key: marks.examId, value: sql<number>`count(*)::int` })
     .from(marks)
-    .where(eq(marks.schoolId, schoolId))
+    .where(and(eq(marks.schoolId, schoolId), teacherId ? eq(marks.enteredById,teacherId):undefined,teacherId ? sql`exists(select 1 from teacher_subject_assignments a where a.school_id=${schoolId} and a.teacher_id=${teacherId} and a.class_subject_id=${marks.classSubjectId})` : undefined))
     .groupBy(marks.examId);
   return toMap(rows);
 }
@@ -85,15 +87,17 @@ export async function subjectCountByTeacher(schoolId: number) {
 }
 
 /** Average achieved percentage per student, across all recorded marks. */
-export async function averageByStudent(schoolId: number) {
+export async function averageByStudent(schoolId: number, teacherId?: number) {
   const rows = await db
     .select({
       key: marks.studentId,
-      value: sql<number>`round(avg(${marks.score} / nullif(${subjects.maxMarks}, 0) * 100)::numeric, 1)::float8`,
+      value: sql<number>`round(avg(${markValues.score} / nullif(${subjects.maxMarks}, 0) * 100)::numeric, 1)::float8`,
     })
     .from(marks)
     .innerJoin(subjects, eq(subjects.id, marks.subjectId))
-    .where(and(eq(marks.schoolId, schoolId), eq(marks.isAbsent, false), isNotNull(marks.score)))
+    .innerJoin(studentEnrollments,and(eq(studentEnrollments.id,marks.enrollmentId),eq(studentEnrollments.schoolId,marks.schoolId)))
+    .innerJoin(classes,and(eq(classes.id,studentEnrollments.classId),eq(classes.schoolId,marks.schoolId)))
+    .where(and(eq(marks.schoolId, schoolId), eq(marks.status, "NUMERIC"),approvedScoringCondition(classes.name), isNotNull(marks.score), teacherId ? eq(marks.enteredById,teacherId):undefined,teacherId ? sql`exists(select 1 from teacher_subject_assignments a where a.school_id=${schoolId} and a.teacher_id=${teacherId} and a.class_subject_id=${marks.classSubjectId})` : undefined))
     .groupBy(marks.studentId);
   return toMap(rows);
 }

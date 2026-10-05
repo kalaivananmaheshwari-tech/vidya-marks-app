@@ -1,75 +1,89 @@
-name: Deploy to Vercel
+name: Authorized Vercel release
 
-# Automatic production deploy on every push to main (i.e. whenever a pull
-# request is merged). Can also be triggered by hand from the Actions tab.
+# Preparation only by default: pushes/merges NEVER deploy.
+# A later authorized operator must enable repository flags, record a release
+# reference, and configure required-reviewer protection on staging/production.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       target:
-        description: "Deploy target"
+        description: "Previously authorized deployment target"
         required: true
-        default: production
+        default: preview
         type: choice
-        options: [production, preview]
+        options: [preview, production]
+      operator_authorized:
+        description: "I have authorization and completed the target's release checklist"
+        required: true
+        default: false
+        type: boolean
+      release_reference:
+        description: "Approved release/change reference (no credentials or personal data)"
+        required: true
+        type: string
 
 concurrency:
-  group: vercel-${{ github.ref }}
-  cancel-in-progress: true
+  group: vercel-${{ inputs.target }}-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
-  pull-requests: write
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   deploy:
-    name: Build & deploy
+    name: Authorized build and release
+    # Missing flags/acknowledgement fail closed. No secrets are installed by V4.
+    if: >-
+      ${{ inputs.operator_authorized == true && inputs.release_reference != '' &&
+          vars.VIDYA_DEPLOYMENT_ENABLED == 'true' &&
+          (inputs.target == 'preview' ||
+           (inputs.target == 'production' && vars.VIDYA_PRODUCTION_RELEASE_APPROVED == 'true')) }}
+    environment:
+      # Reuse the existing GitHub environments; Vercel TARGET remains lowercase.
+      name: ${{ inputs.target == 'production' && 'Production' || 'Preview' }}
     runs-on: ubuntu-latest
-    # The preflight step below skips this job politely until the three repository
-    # secrets exist, so a fresh clone never shows a failing workflow.
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      TARGET: ${{ inputs.target }}
+      RELEASE_REFERENCE: ${{ inputs.release_reference }}
     steps:
-      - name: Check that deployment secrets exist
-        id: preflight
+      - name: Confirm explicit release preconditions
         run: |
-          missing=""
-          [ -z "$VERCEL_TOKEN" ] && missing="$missing VERCEL_TOKEN"
-          [ -z "$VERCEL_ORG_ID" ] && missing="$missing VERCEL_ORG_ID"
-          [ -z "$VERCEL_PROJECT_ID" ] && missing="$missing VERCEL_PROJECT_ID"
-          if [ -n "$missing" ]; then
-            echo "::warning::Skipping deploy — missing repository secret(s):$missing. See DEPLOYMENT.md → 'Automatic deploys from GitHub'."
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          fi
+          set -eu
+          # Values never logged; protected environments require operator setup.
+          test -n "$(printf '%s' "$RELEASE_REFERENCE" | tr -d '[:space:]')" || { echo "::error::A release approval reference is required."; exit 1; }
+          test -n "$VERCEL_TOKEN" && test -n "$VERCEL_ORG_ID" && test -n "$VERCEL_PROJECT_ID" || { echo "::error::Authorized deployment credentials/identifiers are not configured."; exit 1; }
+          case "$TARGET" in preview|production) ;; *) echo "::error::Invalid target."; exit 1 ;; esac
 
       - uses: actions/checkout@v5
-        if: steps.preflight.outputs.ready == 'true'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
 
       - uses: actions/setup-node@v5
-        if: steps.preflight.outputs.ready == 'true'
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
 
+      - name: Existing application quality gates
+        run: pnpm install --frozen-lockfile && pnpm run typecheck && pnpm run lint && pnpm run validate:api && pnpm run test
+
+      # This workflow never connects to a database or runs migrations; backup/restore,
+      # constraint review and target configuration are separately authorized.
       - name: Install Vercel CLI
-        if: steps.preflight.outputs.ready == 'true'
         run: npm install --global vercel@latest
 
-      - name: Pull Vercel project settings
-        if: steps.preflight.outputs.ready == 'true'
-        env:
-          TARGET: ${{ github.event.inputs.target || 'production' }}
+      - name: Pull authorized Vercel project settings
         run: vercel pull --yes --environment="$TARGET" --token="$VERCEL_TOKEN"
 
-      - name: Build
-        if: steps.preflight.outputs.ready == 'true'
-        env:
-          TARGET: ${{ github.event.inputs.target || 'production' }}
+      - name: Build existing Next application
         run: |
           if [ "$TARGET" = "production" ]; then
             vercel build --prod --token="$VERCEL_TOKEN"
@@ -77,41 +91,38 @@ jobs:
             vercel build --token="$VERCEL_TOKEN"
           fi
 
-      - name: Deploy
+      - name: Deploy only the authorized target
         id: deploy
-        if: steps.preflight.outputs.ready == 'true'
-        env:
-          TARGET: ${{ github.event.inputs.target || 'production' }}
         run: |
           if [ "$TARGET" = "production" ]; then
             url="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" | tail -n 1)"
           else
             url="$(vercel deploy --prebuilt --token="$VERCEL_TOKEN" | tail -n 1)"
           fi
-          echo "url=$url" >> "$GITHUB_OUTPUT"
+          printf 'url=%s\n' "$url" >> "$GITHUB_OUTPUT"
           {
-            echo "### Deployed 🚀"
-            echo ""
-            echo "- URL: $url"
-            echo "- Commit: \`${{ github.sha }}\`"
+            echo "### Authorized target release"
+            echo "- Commit: ${{ github.sha }}"
             echo "- Environment: $TARGET"
+            echo "- Target health verification follows; deployment is not backup/TLS/SMS proof."
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Verify the deployment answers a health check
-        if: steps.preflight.outputs.ready == 'true'
+      - name: Verify exact existing readiness contract without logging bodies
+        env:
+          RELEASE_URL: ${{ steps.deploy.outputs.url }}
         run: |
-          url="${{ steps.deploy.outputs.url }}"
-          echo "Checking $url/api/health"
+          set -eu
           for attempt in 1 2 3 4 5; do
-            body="$(curl -fsS --max-time 30 "$url/api/health" || true)"
-            if [ -n "$body" ]; then
-              echo "$body"
-              echo "$body" | grep -q '"ok":true' || { echo "::error::Health check failed: $body"; exit 1; }
-              echo "$body" | grep -q '"persistent":true' || echo "::warning::Database is NOT persistent — set DATABASE_URL to your Neon connection string in Vercel → Settings → Environment Variables."
-              exit 0
-            fi
-            echo "Attempt $attempt did not respond, retrying in 10s…"
+            if node --input-type=module - <<'JS'
+          const response = await fetch(new URL('/api/health', process.env.RELEASE_URL), {signal: AbortSignal.timeout(30000)});
+          if (response.status !== 200) process.exit(1);
+          const data = await response.json();
+          if (data.ok !== true || data.database !== 'postgresql' || data.persistent !== true || data.migration !== '0005_exact_numeric_marks.sql') process.exit(1);
+          console.log('Readiness contract passed. The persistent field means DATABASE_URL is present, not backup/durability certification.');
+          JS
+            then exit 0; fi
+            echo "Readiness attempt $attempt did not pass; response bodies suppressed."
             sleep 10
           done
-          echo "::error::The deployment did not answer $url/api/health"
+          echo "::error::Target readiness did not pass. Hold traffic and use the approved recovery plan."
           exit 1

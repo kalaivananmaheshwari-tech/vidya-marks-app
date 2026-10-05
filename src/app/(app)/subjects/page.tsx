@@ -17,12 +17,13 @@ import {
   useToast,
 } from "@/components/ui";
 import { apiRequest, useApi } from "@/lib/client";
-import type { GroupRow, SubjectRow, TeacherRow } from "@/lib/shared-types";
+import type { ClassListRow, GroupRow, SubjectRow, TeacherRow } from "@/lib/shared-types";
 
 const emptyForm = {
   code: "",
   name: "",
   groupId: "",
+  classId:"",
   hasPractical: false,
   passMarks: "35",
   teacherId: "",
@@ -31,6 +32,7 @@ const emptyForm = {
 export default function SubjectsPage() {
   const toast = useToast();
   const { data, loading, error, refresh, setData } = useApi<{ subjects: SubjectRow[] }>("/api/subjects");
+  const classes=useApi<{classes:ClassListRow[]}>("/api/classes");
   const groups = useApi<{ groups: GroupRow[] }>("/api/groups");
   const teachers = useApi<{ teachers: TeacherRow[] }>("/api/teachers");
 
@@ -63,6 +65,7 @@ export default function SubjectsPage() {
       code: subject.code,
       name: subject.name,
       groupId: subject.groupId ? String(subject.groupId) : "",
+      classId:subject.classId?String(subject.classId):"",
       hasPractical: subject.hasPractical,
       passMarks: String(subject.passMarks),
       teacherId: subject.teacherId ? String(subject.teacherId) : "",
@@ -109,6 +112,7 @@ export default function SubjectsPage() {
           ...form,
           hasPractical,
           groupId: form.groupId || null,
+          classId:form.classId || null,
           teacherId: form.teacherId || null,
         }),
       });
@@ -129,7 +133,7 @@ export default function SubjectsPage() {
     setData({ subjects: all.filter((s) => s.id !== deleting.id) });
     try {
       await apiRequest(`/api/subjects/${deleting.id}`, { method: "DELETE" });
-      toast.push("Subject removed");
+      toast.push("Subject archived; history retained");
       setDeleting(null);
       await refresh();
     } catch (err) {
@@ -145,13 +149,13 @@ export default function SubjectsPage() {
       <PageHeader
         icon="📚"
         title="Subjects"
-        subtitle="Practical subjects: Theory 70 + Practical 20 + Internal 10. Non-practical: Theory 90 + Internal 10."
+        subtitle="Class-specific persisted subject mappings. Approved maxima come from the selected class; scores and allocations are server validated."
         actions={
           <>
             <Select value={filter} onChange={(e) => setFilter(e.target.value)} className="w-48">
               <option value="">All subjects</option>
-              <option value="practical">🔬 Has Practical (70+20+10)</option>
-              <option value="theory">📖 Non-Practical (90+10)</option>
+              <option value="practical">🔬 Practical subjects</option>
+              <option value="theory">📖 Non-practical subjects</option>
               <option value="common">Common subjects</option>
               {groups.data?.groups.map((group) => (
                 <option key={group.id} value={group.id}>
@@ -207,11 +211,7 @@ export default function SubjectsPage() {
                       ) : null}
                     </td>
                     <td className="px-3 py-3">
-                      {subject.hasPractical ? (
-                        <Badge tone="green">🔬 Practical (Yes)</Badge>
-                      ) : (
-                        <Badge tone="slate">📖 Theory (No)</Badge>
-                      )}
+                      <span className="text-xs">{subject.theoryMarks===0 && !subject.hasPractical?"Total /100 only":`Theory ${subject.theoryMarks}${subject.practicalMarks?` + Practical ${subject.practicalMarks}`:""}${subject.internalMarks?` + Internal ${subject.internalMarks}`:""} = 100`}</span>
                     </td>
                     <td className="px-3 py-3">
                       {subject.hasPractical ? (
@@ -266,7 +266,8 @@ export default function SubjectsPage() {
       >
         <form id="subject-form" onSubmit={save} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Subject code">
+            <Field label="Class & Section"><Select value={form.classId} disabled={Boolean(editing)} onChange={(e)=>setForm({...form,classId:e.target.value})}><option value="">Unmapped common template</option>{classes.data?.classes.map((c)=><option key={c.id} value={c.id}>{c.name} - {c.section} · {c.academicYear}</option>)}</Select></Field>
+          <Field label="Subject code">
               <Input
                 value={form.code}
                 onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
@@ -303,7 +304,7 @@ export default function SubjectsPage() {
                   />
                   <div>
                     <span className="text-sm font-semibold text-slate-900">Yes (Practical)</span>
-                    <p className="text-xs text-slate-500">Theory: 70 · Practical: 20 · Internal: 10</p>
+                    <p className="text-xs text-slate-500">6–7 / 11–12: 70 + 20 + 10. 8–10: 75 + 25.</p>
                   </div>
                 </div>
               </label>
@@ -325,7 +326,7 @@ export default function SubjectsPage() {
                   />
                   <div>
                     <span className="text-sm font-semibold text-slate-900">No (Theory only)</span>
-                    <p className="text-xs text-slate-500">Theory: 90 · Internal: 10</p>
+                    <p className="text-xs text-slate-500">6–7 / 11–12: 90 + 10. 8–10: Total /100 only.</p>
                   </div>
                 </div>
               </label>
@@ -346,7 +347,7 @@ export default function SubjectsPage() {
             <Field label="Subject teacher">
               <Select value={form.teacherId} onChange={(e) => setForm({ ...form, teacherId: e.target.value })}>
                 <option value="">Not assigned</option>
-                {teachers.data?.teachers.map((teacher) => (
+                {teachers.data?.teachers.filter((t)=>t.role==="teacher" && t.isActive).map((teacher) => (
                   <option key={teacher.id} value={teacher.id}>
                     {teacher.name}
                   </option>
@@ -359,8 +360,8 @@ export default function SubjectsPage() {
 
       <ConfirmDialog
         open={Boolean(deleting)}
-        title={`Delete ${deleting?.name ?? ""}?`}
-        message="All marks recorded for this subject will be deleted as well."
+        title={`Archive ${deleting?.name ?? ""}?`}
+        message="This subject is archived. Historical marks and published reports are retained."
         onCancel={() => setDeleting(null)}
         onConfirm={confirmDelete}
         busy={busyDelete}

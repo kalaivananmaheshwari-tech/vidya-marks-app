@@ -1,188 +1,57 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { classes, groups, subjects, users } from "@/db/schema";
-import { handleError, int, json, requireAuth, str } from "@/lib/api";
+import { handleError, HttpError, json, readJson, requireAdmin, requireAuth } from "@/lib/api";
 import { studentCountByClass } from "@/lib/counts";
-
+import { classScopeCondition, assertTeacherReference } from "@/lib/authorization";
+import { classSetupSchema, ownedGroup } from "@/lib/setup-validation";
+import { syncClassRelations, yearRecord } from "@/lib/relations";
+import { allocationFor, classNumber } from "@/lib/domain/marks";
+import { audit } from "@/lib/audit";
 export const dynamic = "force-dynamic";
-
-function isClass11or12(name: string): boolean {
-  const n = name.trim().toLowerCase();
-  return (
-    n === "11" ||
-    n === "12" ||
-    /\b(11|12)\b/.test(n) ||
-    /\b(xi|xii)\b/.test(n) ||
-    n.includes("11") ||
-    n.includes("12")
-  );
-}
-
-const DEFAULT_SUBJECTS_6_TO_10 = [
-  { name: "Language", code: "LNG", hasPractical: false },
-  { name: "English", code: "ENG", hasPractical: false },
-  { name: "Mathematics", code: "MAT", hasPractical: false },
-  { name: "Science", code: "SCI", hasPractical: true },
-  { name: "Social Science", code: "SOC", hasPractical: false },
-  { name: "PET", code: "PET", hasPractical: false },
-  { name: "TNSMART", code: "TNS", hasPractical: false },
-  { name: "Science Tamil", code: "SCT", hasPractical: true },
+const DEFAULT_SUBJECTS = [
+  { name: "Language", code: "LNG", hasPractical: false }, { name: "English", code: "ENG", hasPractical: false },
+  { name: "Mathematics", code: "MAT", hasPractical: false }, { name: "Science", code: "SCI", hasPractical: true },
+  { name: "Social Science", code: "SOC", hasPractical: false }, { name: "PET", code: "PET", hasPractical: false },
+  { name: "TNSPARK", code: "TNS", hasPractical: false }, { name: "Science Tamil", code: "SCT", hasPractical: true },
 ];
-
 export async function GET() {
   try {
-    const { user } = await requireAuth();
+    const auth = await requireAuth();
     const [rows, counts] = await Promise.all([
-      db
-        .select({
-          id: classes.id,
-          name: classes.name,
-          section: classes.section,
-          groupId: classes.groupId,
-          groupCode: groups.code,
-          groupName: groups.name,
-          stream: groups.stream,
-          academicYear: classes.academicYear,
-          room: classes.room,
-          classTeacherId: classes.classTeacherId,
-          classTeacher: users.name,
-        })
-        .from(classes)
-        .leftJoin(groups, eq(groups.id, classes.groupId))
-        .leftJoin(users, eq(users.id, classes.classTeacherId))
-        .where(eq(classes.schoolId, user.schoolId))
-        .orderBy(asc(classes.name), asc(classes.section)),
-      studentCountByClass(user.schoolId),
+      db.select({ id: classes.id, name: classes.name, section: classes.section, groupId: classes.groupId, groupCode: groups.code, groupName: groups.name, stream: groups.stream, academicYear: classes.academicYear, academicYearId: classes.academicYearId, room: classes.room, classTeacherId: classes.classTeacherId, classTeacher: users.name })
+        .from(classes).leftJoin(groups, and(eq(groups.id, classes.groupId), eq(groups.schoolId, classes.schoolId))).leftJoin(users, and(eq(users.id, classes.classTeacherId), eq(users.schoolId, classes.schoolId)))
+        .where(and(eq(classes.schoolId, auth.school.id), isNull(classes.archivedAt), classScopeCondition(auth))).orderBy(asc(classes.name), asc(classes.section)),
+      studentCountByClass(auth.school.id),
     ]);
-
-    return json({
-      classes: rows.map((row) => ({ ...row, studentCount: counts.get(row.id) ?? 0 })),
-    });
-  } catch (error) {
-    return handleError(error);
-  }
+    return json({ classes: rows.map((row) => ({ ...row, studentCount: counts.get(row.id) ?? 0 })) });
+  } catch (error) { return handleError(error); }
 }
-
 export async function POST(request: Request) {
   try {
-    const { user, school } = await requireAuth();
-    const body = await request.json();
-    const name = str(body.name);
-    if (!name) return json({ error: "Class name is required." }, 400);
-
-    const section = str(body.section)?.toUpperCase() ?? "A";
-    const academicYear = str(body.academicYear) ?? school.academicYear;
-    const room = str(body.room) ?? null;
-    const classTeacherId = int(body.classTeacherId) ?? null;
-
-    let groupId: number | null = int(body.groupId) ?? null;
-
-    const isHsc = isClass11or12(name);
-
-    // If 11, 12: user enters Group Code and Sub 1 to Sub 6
-    if (isHsc) {
-      const groupCode = str(body.groupCode)?.toUpperCase();
-      if (groupCode) {
-        // find or create group
-        const [existing] = await db
-          .select()
-          .from(groups)
-          .where(and(eq(groups.schoolId, user.schoolId), eq(groups.code, groupCode)))
-          .limit(1);
-
-        if (existing) {
-          groupId = existing.id;
-        } else {
-          const [newGroup] = await db
-            .insert(groups)
-            .values({
-              schoolId: user.schoolId,
-              code: groupCode,
-              name: str(body.groupName) ?? `Group ${groupCode}`,
-              stream: str(body.stream) ?? "Science",
-            })
-            .returning();
-          groupId = newGroup.id;
+    const auth = await requireAdmin(); const body = await readJson(request, classSetupSchema);
+    const grade = classNumber(body.name); if (!grade) throw new HttpError("Choose a valid class from 1 to 12.");
+    if (grade >= 11 && (!body.groupCode || body.subjects?.length !== 6 || new Set(body.subjects.map((s) => s.toLowerCase())).size !== 6)) throw new HttpError("Classes 11–12 require a Group Code and exactly six distinct custom subjects.");
+    if (grade < 11 && (body.groupCode || body.groupId)) throw new HttpError("Group Code is only available for classes 11–12.");
+    const cls = await db.transaction(async (tx) => {
+      const year = await yearRecord(body.academicYear ?? auth.school.academicYear, tx);
+      if (body.classTeacherId) await assertTeacherReference(auth.school.id, body.classTeacherId, tx);
+      let groupId: number | null = null;
+      if (grade >= 11) {
+        if (body.groupId) { const group = await ownedGroup(tx, auth.school.id, body.groupId); if (group.code !== body.groupCode!.toUpperCase()) throw new HttpError("Group ID and Group Code do not match."); groupId = group.id; }
+        else {
+          const [group] = await tx.insert(groups).values({ schoolId: auth.school.id, code: body.groupCode!.toUpperCase(), name: body.groupName || `Group ${body.groupCode!.toUpperCase()}`, stream: body.stream || "General" })
+            .onConflictDoUpdate({ target: [groups.schoolId, groups.code], set: { code: body.groupCode!.toUpperCase() } }).returning();
+          if (group.archivedAt) throw new HttpError("This Group Code is archived.", 409, "CONFLICT"); groupId = group.id;
         }
       }
-    } else {
-      // If 6 to 10: Group Code is disabled!
-      groupId = null;
-    }
-
-    // Insert class
-    const [cls] = await db
-      .insert(classes)
-      .values({
-        schoolId: user.schoolId,
-        name,
-        section,
-        groupId,
-        academicYear,
-        room,
-        classTeacherId,
-      })
-      .returning();
-
-    // Now set up the subjects:
-    if (isHsc) {
-      // Sub 1 to Sub 6 from user
-      const rawSubs = Array.isArray(body.subjects)
-        ? body.subjects
-        : [body.sub1, body.sub2, body.sub3, body.sub4, body.sub5, body.sub6];
-      const validSubs = rawSubs.filter((s: unknown) => typeof s === "string" && s.trim().length > 0);
-
-      if (validSubs.length > 0) {
-        for (let i = 0; i < validSubs.length; i++) {
-          const subName = String(validSubs[i]).trim();
-          const subCode = `C${cls.id}-S${i + 1}`;
-          // Check if it's typically practical (Physics, Chemistry, Biology, Computer Science, etc.)
-          const hasPractical = /physics|chemistry|biology|computer|botany|zoology/i.test(subName);
-          const theoryMarks = hasPractical ? 70 : 90;
-          const practicalMarks = hasPractical ? 20 : 0;
-          const internalMarks = 10;
-
-          await db.insert(subjects).values({
-            schoolId: user.schoolId,
-            classId: cls.id,
-            groupId: groupId,
-            code: subCode,
-            name: subName,
-            hasPractical,
-            theoryMarks,
-            practicalMarks,
-            internalMarks,
-            maxMarks: 100,
-            passMarks: 35,
-          });
-        }
-      }
-    } else {
-      // 6 to 10: Sets to Default Language, English, Mathematics, Science, Social Science, PET, TNSMART, Science Tamil
-      for (const defSub of DEFAULT_SUBJECTS_6_TO_10) {
-        const subCode = `C${cls.id}-${defSub.code}`;
-        const theoryMarks = defSub.hasPractical ? 70 : 90;
-        const practicalMarks = defSub.hasPractical ? 20 : 0;
-        const internalMarks = 10;
-
-        await db.insert(subjects).values({
-          schoolId: user.schoolId,
-          classId: cls.id,
-          groupId: null,
-          code: subCode,
-          name: defSub.name,
-          hasPractical: defSub.hasPractical,
-          theoryMarks,
-          practicalMarks,
-          internalMarks,
-          maxMarks: 100,
-          passMarks: 35,
-        });
-      }
-    }
-
+      const [row] = await tx.insert(classes).values({ schoolId: auth.school.id, name: body.name, section: body.section?.toUpperCase() || "A", groupId, academicYear: year.label, academicYearId: year.id, room: body.room || null, classTeacherId: body.classTeacherId ?? null }).returning();
+      const list = grade >= 11 ? body.subjects!.map((name, i) => ({ name, code: `S${i+1}`, hasPractical: false })) : grade >= 6 ? DEFAULT_SUBJECTS : [];
+      for (const sub of list) await tx.insert(subjects).values({ schoolId: auth.school.id, classId: row.id, groupId, code: `C${row.id}-${sub.code}`, name: sub.name, ...allocationFor(grade, sub.hasPractical) });
+      await syncClassRelations(tx, row.id, auth.school.id);
+      await audit(tx, auth, "class.created", "classes", row.id, { className: row.name, section: row.section, academicYearId: year.id, subjectCount: list.length });
+      return row;
+    });
     return json({ class: cls }, 201);
-  } catch (error) {
-    return handleError(error);
-  }
+  } catch (error) { return handleError(error); }
 }

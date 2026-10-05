@@ -12,3 +12,12 @@ DEPLOYMENT.md
 coverage
 .vscode
 .idea
+
+# Never ship local databases, credentials or verification artifacts
+.pgdata
+.cache
+playwright-report
+test-results
+artifacts
+.env.*.local
+*.dump

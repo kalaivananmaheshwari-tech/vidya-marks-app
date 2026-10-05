@@ -1,33 +1,57 @@
 {
-  "name": "nextjs-postgresql-template",
+  "name": "vidya-analytics",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
-    "start": "next start",
+    "start": "next start --hostname 0.0.0.0",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "tsx scripts/run-browser-tests.ts",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:check": "tsx scripts/check-database.ts",
+    "test:api": "tsx scripts/api-smoke.ts",
+    "db:local": "tsx scripts/start-local-postgres.ts",
+    "test:postgres": "tsx scripts/test-postgres.ts",
+    "validate:api": "tsx scripts/validate-openapi.ts",
+    "verify:legacy": "tsx scripts/verify-legacy-copy.ts",
+    "test:http:prepare": "tsx scripts/prepare-http-database.ts",
+    "test:geographic-api": "tsx scripts/geographic-smoke.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",
+    "@fontsource/noto-sans-tamil": "^5.3.0",
     "dotenv": "17.3.1",
     "drizzle-orm": "0.45.2",
     "next": "16.2.6",
     "pg": "8.20.0",
     "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "react-dom": "19.2.6",
+    "zod": "3.25.76"
   },
   "devDependencies": {
+    "@apidevtools/swagger-parser": "12.1.0",
+    "@playwright/test": "1.58.2",
+    "@sparticuz/chromium": "143.0.4",
     "@tailwindcss/postcss": "4.1.17",
     "@types/node": "22.19.15",
     "@types/pg": "8.18.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "drizzle-kit": "0.31.10",
+    "embedded-postgres": "17.9.0-beta.16",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.6",
     "postcss": "8.5.8",
     "tailwindcss": "4.1.17",
-    "typescript": "5.9.3"
+    "tsx": "4.21.0",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
+  },
+  "packageManager": "pnpm@10.28.2",
+  "engines": {
+    "node": ">=22.13.0"
   }
 }

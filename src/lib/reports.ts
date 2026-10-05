@@ -1,6 +1,10 @@
-import { and, eq, sql } from "drizzle-orm";
-import { db } from "@/db";
+import {assertApprovedScoring} from "@/lib/scoring-policy";
+import { and, eq, isNull, sql } from "drizzle-orm";
+import { db, type DbExecutor } from "@/db";
 import { classes, exams, students, subjects, users } from "@/db/schema";
+import { isAdmin, type SchoolAuthContext } from "@/lib/auth";
+import { classScopeCondition, subjectScopeCondition, assertClassAccess } from "@/lib/authorization";
+import { markState, resultForMark } from "@/lib/domain/marks";
 import {
   computeStats,
   groupBy,
@@ -9,32 +13,25 @@ import {
   type MarkFilters,
   type MarkRow,
 } from "@/lib/analytics";
-import { GRADE_SCALE, PASS_PERCENTAGE, gradeFor, round } from "@/lib/grades";
+import { GRADE_SCALE, gradeFor, round } from "@/lib/grades";
 
-async function countFor(
-  table: "students" | "classes" | "subjects" | "exams" | "users",
-  schoolId: number,
-) {
-  const map = { students, classes, subjects, exams, users } as const;
-  const t = map[table];
-  const [row] = await db
-    .select({ value: sql<number>`count(*)::int` })
-    .from(t)
-    .where(eq(t.schoolId, schoolId));
+async function countFor(table: "students" | "classes" | "subjects" | "exams" | "users", auth: SchoolAuthContext, executor: DbExecutor) {
+  const schoolId=auth.school.id; const teacher=!isAdmin(auth.user);
+  const scope={
+    students: sql`archived_at is null and exists(select 1 from student_enrollments e where e.student_id=students.id and e.school_id=${schoolId} and e.is_active) and ${teacher?sql`exists(select 1 from teacher_subject_assignments a where a.school_id=${schoolId} and a.teacher_id=${auth.user.id} and a.class_id=students.class_id)`:sql`true`}`,
+    classes: and(isNull(classes.archivedAt),classScopeCondition(auth))!,
+    subjects: and(isNull(subjects.archivedAt),subjectScopeCondition(auth))!,
+    exams: isNull(exams.archivedAt),
+    users: and(eq(users.isActive,true),teacher?eq(users.id,auth.user.id):undefined)!,
+  };
+  const t={students,classes,subjects,exams,users}[table];
+  const [row]=await executor.select({value:sql<number>`count(*)::int`}).from(t).where(and(eq(t.schoolId,schoolId),scope[table]));
   return row?.value ?? 0;
 }
-
-export async function overviewReport(schoolId: number, examId?: number) {
-  const rows = await loadMarkRows({ schoolId, examId });
-  const stats = computeStats(rows);
-
-  const [studentCount, classCount, subjectCount, examCount, staffCount] = await Promise.all([
-    countFor("students", schoolId),
-    countFor("classes", schoolId),
-    countFor("subjects", schoolId),
-    countFor("exams", schoolId),
-    countFor("users", schoolId),
-  ]);
+export async function overviewReport(auth: SchoolAuthContext, examId?: number, executor: DbExecutor=db) {
+  const schoolId=auth.school.id; const teacherId=isAdmin(auth.user)?undefined:auth.user.id;
+  const rows=await loadMarkRows({schoolId,examId,teacherId},executor); const stats=computeStats(rows);
+  const studentCount=await countFor("students",auth,executor),classCount=await countFor("classes",auth,executor),subjectCount=await countFor("subjects",auth,executor),examCount=await countFor("exams",auth,executor),staffCount=await countFor("users",auth,executor);
 
   const byClass = groupBy(rows, (r) => r.classId);
   const classComparison = [...byClass.entries()]
@@ -76,12 +73,12 @@ export async function overviewReport(schoolId: number, examId?: number) {
     count: stats.grades[g.grade] ?? 0,
   }));
 
-  const allExams = await db
+  const allExams = await executor
     .select({ id: exams.id, name: exams.name, startDate: exams.startDate })
     .from(exams)
     .where(eq(exams.schoolId, schoolId))
     .orderBy(exams.startDate);
-  const allRows = examId ? await loadMarkRows({ schoolId }) : rows;
+  const allRows = examId ? await loadMarkRows({ schoolId, teacherId },executor) : rows;
   const byExam = groupBy(allRows, (r) => r.examId);
   const examTrend = allExams
     .filter((e) => byExam.has(e.id))
@@ -100,7 +97,9 @@ export async function overviewReport(schoolId: number, examId?: number) {
       average: stats.average,
       passRate: stats.passRate,
       distinctionRate: stats.attempts ? round((stats.distinction / stats.attempts) * 100) : 0,
-      marksEntered: stats.attempts,
+      marksEntered: stats.attempts + stats.absent + stats.exemption,
+      exemption: stats.exemption,
+      pending: stats.pending,
       absent: stats.absent,
     },
     classComparison,
@@ -109,8 +108,8 @@ export async function overviewReport(schoolId: number, examId?: number) {
     examTrend,
     topStudents: totals.filter((t) => t.rank > 0).slice(0, 8),
     needsAttention: totals
-      .filter((t) => t.percentage < 50 || t.failedSubjects > 0)
-      .sort((a, b) => a.percentage - b.percentage)
+      .filter((t) => (t.percentage !== null && t.percentage < 50) || t.failedSubjects > 0)
+      .sort((a, b) => (a.percentage ?? Infinity) - (b.percentage ?? Infinity))
       .slice(0, 8),
   };
 }
@@ -132,14 +131,14 @@ export type SubjectReportRow = {
   classSplit: Array<{ classLabel: string; average: number; passRate: number }>;
 };
 
-export async function subjectReport(filters: MarkFilters) {
-  const rows = await loadMarkRows(filters);
+export async function subjectReport(filters: MarkFilters, executor: DbExecutor=db) {
+  const rows = await loadMarkRows(filters,executor);
   const bySubject = groupBy(rows, (r) => r.subjectId);
   const list: SubjectReportRow[] = [...bySubject.entries()].map(([subjectId, subjectRows]) => {
     const s = computeStats(subjectRows);
     const first = subjectRows[0];
     const best = subjectRows
-      .filter((r) => !r.isAbsent && r.score !== null)
+      .filter((r) => markState(r) === "NUMERIC")
       .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0];
     const byClass = groupBy(subjectRows, (r) => r.classId);
     return {
@@ -157,7 +156,7 @@ export async function subjectReport(filters: MarkFilters) {
       topper: best
         ? {
             name: best.studentName,
-            score: best.score ?? 0,
+            score: best.score!,
             classLabel: `${best.className} - ${best.section}`,
           }
         : null,
@@ -178,8 +177,8 @@ export async function subjectReport(filters: MarkFilters) {
   return { subjects: list, overall: computeStats(rows) };
 }
 
-export async function classReport(filters: MarkFilters) {
-  const rows = await loadMarkRows(filters);
+export async function classReport(filters: MarkFilters, executor: DbExecutor=db) {
+  const rows = await loadMarkRows(filters,executor);
   const byClass = groupBy(rows, (r) => r.classId);
   const list = [...byClass.entries()].map(([classId, classRows]) => {
     const s = computeStats(classRows);
@@ -222,8 +221,8 @@ export async function classReport(filters: MarkFilters) {
   return { classes: list, overall: computeStats(rows) };
 }
 
-export async function sectionReport(filters: MarkFilters & { grade?: string }) {
-  const all = await loadMarkRows(filters);
+export async function sectionReport(filters: MarkFilters & { grade?: string }, executor: DbExecutor=db) {
+  const all = await loadMarkRows(filters,executor);
   const rows = filters.grade ? all.filter((r) => r.className === filters.grade) : all;
 
   const byGrade = groupBy(rows, (r) => r.className);
@@ -268,76 +267,25 @@ export async function sectionReport(filters: MarkFilters & { grade?: string }) {
   return { grades, overall: computeStats(rows) };
 }
 
-export async function studentReport(studentId: number, schoolId: number) {
-  const [profile] = await db
-    .select({
-      id: students.id,
-      name: students.name,
-      admissionNo: students.admissionNo,
-      rollNo: students.rollNo,
-      gender: students.gender,
-      guardianName: students.guardianName,
-      contact: students.contact,
-      classId: students.classId,
-      className: classes.name,
-      section: classes.section,
-    })
-    .from(students)
-    .innerJoin(classes, eq(classes.id, students.classId))
-    .where(and(eq(students.id, studentId), eq(students.schoolId, schoolId)))
-    .limit(1);
-
-  if (!profile) return null;
-
-  const classRows = (await loadMarkRows({ schoolId, classId: profile.classId })) as MarkRow[];
-  const rows = classRows.filter((r) => r.studentId === studentId);
-
-  const byExam = groupBy(rows, (r) => r.examId);
-  const examCards = [...byExam.entries()].map(([examId, examRows]) => {
-    const scored = examRows.filter((r) => !r.isAbsent && r.score !== null);
-    const total = scored.reduce((sum, r) => sum + (r.score ?? 0), 0);
-    const maxTotal = scored.reduce((sum, r) => sum + (r.maxMarks || 100), 0);
-    const percentage = maxTotal ? round((total / maxTotal) * 100) : 0;
-    const classExamTotals = studentTotals(classRows.filter((r) => r.examId === examId));
-    const studentEntry = classExamTotals.find((t) => t.studentId === studentId);
-    const rank = studentEntry?.rank && studentEntry.rank > 0 ? studentEntry.rank : null;
-    return {
-      examId,
-      examName: examRows[0].examName,
-      total: round(total, 0),
-      maxTotal,
-      percentage,
-      grade: gradeFor(percentage).grade,
-      rank: rank || null,
-      classSize: classExamTotals.length,
-      subjects: examRows
-        .map((r) => ({
-          subjectId: r.subjectId,
-          name: r.subjectName,
-          code: r.subjectCode,
-          score: r.score,
-          maxMarks: r.maxMarks,
-          isAbsent: r.isAbsent,
-          percentage: r.score === null ? 0 : round(((r.score ?? 0) / (r.maxMarks || 100)) * 100),
-          grade: r.isAbsent ? "AB" : gradeFor(((r.score ?? 0) / (r.maxMarks || 100)) * 100).grade,
-          passed: !r.isAbsent && ((r.score ?? 0) / (r.maxMarks || 100)) * 100 >= PASS_PERCENTAGE,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
+export async function studentReport(studentId: number, auth: SchoolAuthContext, executor: DbExecutor=db) {
+  const schoolId=auth.school.id;
+  const [profile]=await executor.select({id:students.id,uuid:students.uuid,name:students.name,admissionNo:students.admissionNo,rollNo:students.rollNo,gender:students.gender,guardianName:students.guardianName,contact:students.contact,classId:students.classId,className:classes.name,section:classes.section}).from(students)
+    .innerJoin(classes,and(eq(classes.id,students.classId),eq(classes.schoolId,students.schoolId))).where(and(eq(students.id,studentId),eq(students.schoolId,schoolId))).limit(1);
+  if(!profile) return null;
+  if(!isAdmin(auth.user)) await assertClassAccess(auth,profile.classId,executor);
+  assertApprovedScoring(profile.className);
+  const classRows=await loadMarkRows({schoolId,...(!isAdmin(auth.user)?{teacherId:auth.user.id}:{})},executor);
+  const rows=classRows.filter((r)=>r.studentId===studentId);
+  const examCards=[...groupBy(rows,(r)=>`${r.examId}:${r.classId}`).values()].map((examRows)=>{
+    const first=examRows[0]; const peers=studentTotals(classRows.filter((r)=>r.examId===first.examId && r.classId===first.classId));
+    const entry=peers.find((t)=>t.studentId===studentId);
+    return {examId:first.examId,examName:first.examName,academicYear:first.academicYear ?? "",classId:first.classId,classLabel:`${first.className} - ${first.section}`,total:entry?.total ?? null,maxTotal:entry?.maxTotal ?? 0,percentage:entry?.percentage ?? null,grade:entry?.grade ?? "-",result:entry?.result ?? "Pending",rank:entry?.rank || null,classSize:peers.length,
+      subjects:examRows.map((r)=>{ const state=markState(r); const pct=state==="NUMERIC"?round(r.score!/r.maxMarks*100):null;
+        return {subjectId:r.subjectId,name:r.subjectName,code:r.subjectCode,score:state==="NUMERIC"?r.score:null,maxMarks:r.maxMarks,isAbsent:state==="AB",isExempt:state==="EXEMPT",status:state,percentage:pct,grade:pct!==null?gradeFor(pct).grade:state==="EXEMPT"?"Exemption":state==="AB"?"AB":"-",passed:resultForMark(r)==="Pass"}; }).sort((a,b)=>a.name.localeCompare(b.name)),
     };
   });
-
-  const overall = computeStats(rows);
-  const bySubject = groupBy(rows, (r) => r.subjectId);
-  const subjectTrend = [...bySubject.values()].map((sRows) => ({
-    name: sRows[0].subjectName,
-    points: sRows.map((r) => ({
-      exam: r.examName,
-      value: r.score === null ? 0 : round(((r.score ?? 0) / (r.maxMarks || 100)) * 100),
-    })),
-    average: computeStats(sRows).average,
-  }));
-
-  return { profile, examCards, overall, subjectTrend };
+  const subjectTrend=[...groupBy(rows,(r)=>r.subjectName).values()].map((set)=>({name:set[0].subjectName,points:set.map((r)=>({exam:r.examName,value:markState(r)==="NUMERIC"?round(r.score!/r.maxMarks*100):null})),average:computeStats(set).average}));
+  return {school:auth.school,profile:{...profile,...(!isAdmin(auth.user)?{guardianName:null,contact:null}:{})},examCards,overall:computeStats(rows),subjectTrend,scope:isAdmin(auth.user)?"School administrator":"Assigned subjects only"};
 }
 
 export async function teacherOptions(schoolId: number) {

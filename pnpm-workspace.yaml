@@ -1,0 +1,8 @@
+# The existing application remains one package; no parallel app is introduced.
+packages:
+  - '.'
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - unrs-resolver
+  - "@embedded-postgres/linux-x64"

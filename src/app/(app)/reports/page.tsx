@@ -29,6 +29,8 @@ type ClassItem = {
   groupId: number | null;
   groupCode: string | null;
   groupName: string | null;
+  classTeacherId:number|null;
+  academicYear:string;
 };
 
 type ExamItem = {
@@ -50,26 +52,28 @@ type SubjectItem = {
   internalMarks: number;
   maxMarks: number;
   passMarks: number;
+  mode: "TOTAL" | "COMPONENTS";
 };
 
 type ConsolidatedStudent = {
   sNo: number;
   regNo: string;
   name: string;
-  gender: "B" | "G";
+  gender: "B" | "G" | "U";
   subjectScores: Record<
     number,
     {
       score: number | null;
       isAbsent: boolean;
+      isExempt:boolean;
       passed: boolean;
       theoryScore: number | null;
       practicalScore: number | null;
       internalScore: number | null;
     }
   >;
-  total: number;
-  result: "Pass" | "Fail";
+  total: number | null;
+  result: "Pass" | "Fail" | "AB" | "Exemption" | "Pending";
   failedSubjectsCount: number;
   rank: number | null;
 };
@@ -102,12 +106,14 @@ type SubjectAnalysis = {
     sNo: number;
     regNo: string;
     name: string;
-    gender: "B" | "G";
+    gender: "B" | "G" | "U";
     theoryScore: number | null;
     practicalScore: number | null;
     internalScore: number | null;
     score: number | null;
     isAbsent: boolean;
+    isExempt:boolean;
+    result:string;
     passed: boolean;
   }>;
   b: StatsBreakdown;
@@ -184,30 +190,39 @@ type OfficialReportsResponse = {
 export default function OfficialReportsPage() {
   const [classId, setClassId] = useState<string>("");
   const [examId, setExamId] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"consolidated" | "subject" | "matrix" | "cce" | "form2">("consolidated");
+  const [activeTab, setActiveTab] = useState<"consolidated" | "subject" | "matrix" | "cce" | "form2">("subject");
+  const [includeArchived,setIncludeArchived]=useState(false);
+  const [previousExamId,setPreviousExam]=useState("");
+  const [orientation,setOrientation]=useState<"portrait"|"landscape">("landscape");
+  const me=useApi<{user:{id:number;role:string}|null}>("/api/auth/me");
+  const lookup=useApi<OfficialReportsResponse>(`/api/reports/official?mode=subject${includeArchived?"&includeArchived=1":""}`);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
 
   const queryUrl = useMemo(() => {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({mode:activeTab});
+    if(includeArchived)params.set("includeArchived","1");
+    if(previousExamId)params.set("previousExamId",previousExamId);
     if (classId) params.set("classId", classId);
     if (examId) params.set("examId", examId);
     return `/api/reports/official?${params.toString()}`;
-  }, [classId, examId]);
+  }, [classId, examId, activeTab, includeArchived, previousExamId]);
 
-  const { data, loading, error, refresh } = useApi<OfficialReportsResponse>(queryUrl, [queryUrl]);
+  const { data, loading, error, errorDetails, refresh } = useApi<OfficialReportsResponse>(classId && examId?queryUrl:null, [queryUrl]);
+  const canConsolidate=me.data?.user?.role==="admin" || (Boolean(me.data?.user?.id) && lookup.data?.classes.find((c)=>String(c.id)===classId)?.classTeacherId===me.data?.user?.id);
+  const pending=Array.isArray(errorDetails?.pendingTeachers)?errorDetails.pendingTeachers as Array<{teacherName:string;subjectName:string;pendingStudentCount:number}>:[];
 
+  const matchingExams=useMemo(()=>lookup.data?.exams.filter((e)=>e.academicYear===lookup.data?.classes.find((c)=>String(c.id)===classId)?.academicYear) ?? [],[lookup.data,classId]);
   // Set default class & exam
   useEffect(() => {
-    if (!classId && data?.classes && data.classes.length > 0) {
-      setClassId(String(data.classes[0].id));
+    if (!classId && lookup.data?.classes && lookup.data.classes.length > 0) {
+      setClassId(String(lookup.data.classes[0].id));
     }
-  }, [data?.classes, classId]);
+  }, [lookup.data?.classes, classId]);
 
   useEffect(() => {
-    if (!examId && data?.exams && data.exams.length > 0) {
-      setExamId(String(data.exams[0].id));
-    }
-  }, [data?.exams, examId]);
+    if(!lookup.data || !classId)return;
+    if(!matchingExams.some((e)=>String(e.id)===examId))setExamId(matchingExams[0]?String(matchingExams[0].id):"");
+  },[lookup.data,classId,matchingExams,examId]);
 
   // Set default subject for single subject tab
   useEffect(() => {
@@ -252,6 +267,7 @@ export default function OfficialReportsPage() {
   return (
     <>
       <div className="no-print">
+        <style>{`@page {size: A4 ${orientation}; margin:8mm;}`}</style>
         <PageHeader
           icon="📑"
           title="Official Government School Reports"
@@ -260,6 +276,7 @@ export default function OfficialReportsPage() {
             <div className="flex items-center gap-2">
               <Button
                 variant="primary"
+                disabled={Boolean(error) || loading || !data?.selectedClass}
                 onClick={() => {
                   window.print();
                 }}
@@ -274,11 +291,11 @@ export default function OfficialReportsPage() {
         <Card className="mt-4">
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Select Class & Section">
-              <Select value={classId} onChange={(e) => setClassId(e.target.value)}>
+              <Select value={classId} onChange={(e) => {setClassId(e.target.value);setExamId("");setPreviousExam("");}}>
                 <option value="">Select class...</option>
-                {data?.classes.map((c) => (
+                {lookup.data?.classes.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name} - {c.section} {c.groupCode ? `(Group ${c.groupCode})` : ""}
+                    {c.name} - {c.section} · {c.academicYear} {c.groupCode ? `(Group ${c.groupCode})` : ""}
                   </option>
                 ))}
               </Select>
@@ -287,7 +304,7 @@ export default function OfficialReportsPage() {
             <Field label="Select Examination">
               <Select value={examId} onChange={(e) => setExamId(e.target.value)}>
                 <option value="">Select exam...</option>
-                {data?.exams.map((ex) => (
+                {matchingExams.map((ex) => (
                   <option key={ex.id} value={ex.id}>
                     {ex.name} {ex.month ? `(${ex.month} ${ex.year ?? ""})` : ""}
                   </option>
@@ -311,7 +328,7 @@ export default function OfficialReportsPage() {
           <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => setActiveTab("consolidated")}
+              disabled={!canConsolidate} title="Class Teacher / school administrator only" onClick={() => setActiveTab("consolidated")}
               className={`px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
                 activeTab === "consolidated"
                   ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
@@ -333,7 +350,7 @@ export default function OfficialReportsPage() {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab("matrix")}
+              disabled={!canConsolidate} title="Class Teacher / school administrator only" onClick={() => setActiveTab("matrix")}
               className={`px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
                 activeTab === "matrix"
                   ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
@@ -344,7 +361,7 @@ export default function OfficialReportsPage() {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab("cce")}
+              disabled title="Disabled pending approved FA Total, Level, entry/term and publication rules"
               className={`px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
                 activeTab === "cce"
                   ? "bg-[#00a884] text-white shadow-md shadow-emerald-600/25"
@@ -355,7 +372,7 @@ export default function OfficialReportsPage() {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab("form2")}
+              disabled={!canConsolidate} title="Class Teacher / school administrator only" onClick={() => setActiveTab("form2")}
               className={`px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
                 activeTab === "form2"
                   ? "bg-rose-700 text-white shadow-md shadow-rose-700/25"
@@ -365,10 +382,17 @@ export default function OfficialReportsPage() {
               📋 5. Form - II (Class Wise Result Analysis &amp; Teachers Performance)
             </button>
           </div>
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <Field label="Print orientation"><Select value={orientation} onChange={(e)=>setOrientation(e.target.value as "portrait"|"landscape")}><option value="landscape">A4 Landscape</option><option value="portrait">A4 Portrait</option></Select></Field>
+            {me.data?.user?.role==="admin" && <label className="text-sm"><input type="checkbox" checked={includeArchived} onChange={(e)=>{setIncludeArchived(e.target.checked);setClassId("");setExamId("");}}/> Include archived published history</label>}
+            {activeTab==="form2" && <Field label="Previous exam comparison (optional)"><Select value={previousExamId} onChange={(e)=>setPreviousExam(e.target.value)}><option value="">No comparison / not recorded</option>{lookup.data?.exams.filter((e)=>String(e.id)!==examId && e.academicYear===selectedExam?.academicYear).map((e)=><option key={e.id} value={e.id}>{e.name}</option>)}</Select></Field>}
+          </div>
+          <p className="mt-3 text-xs text-amber-800">CCE Register is disabled: FA Total, Level mapping, entry permissions, terms and publication/edit workflow require approval. No scores or EMIS IDs are invented.</p>
         </Card>
       </div>
 
       {error ? <ErrorState message={error} onRetry={refresh} /> : null}
+      {pending.length>0 && <Card><h2 className="font-semibold">Pending teachers and subjects</h2><table className="mt-3 w-full text-sm"><thead><tr><th scope="col" className="text-left">Teacher</th><th scope="col" className="text-left">Subject</th><th scope="col">Pending students</th></tr></thead><tbody>{pending.map((p,i)=><tr key={i}><td>{p.teacherName}</td><td>{p.subjectName}</td><td className="text-center">{p.pendingStudentCount}</td></tr>)}</tbody></table></Card>}
 
       {!classId || !examId ? (
         <div className="no-print mt-6">
@@ -382,7 +406,7 @@ export default function OfficialReportsPage() {
         <Card className="mt-6">
           <TableSkeleton rows={10} cols={8} />
         </Card>
-      ) : (
+      ) : error || !data?.selectedClass ? null : (
         <div className="mt-6 print-page">
           {/* =========================================================================
               REPORT 1: CONSOLIDATED MARK LIST (Attachment 1)
@@ -447,12 +471,12 @@ export default function OfficialReportsPage() {
                                 isFail ? "text-rose-700 font-bold bg-rose-50/40 print:bg-transparent" : ""
                               }`}
                             >
-                              {sc ? (sc.isAbsent ? "AB" : (sc.score ?? "—")) : "—"}
+                              {sc ? (sc.isAbsent ? "AB" : sc.isExempt?"Exemption":(sc.score ?? "—")) : "—"}
                             </td>
                           );
                         })}
                         <td className="border border-black px-2 py-1.5 text-center font-bold tabular-nums">
-                          {stu.total}
+                          {stu.total ?? "—"}
                         </td>
                         <td
                           className={`border border-black px-2 py-1.5 text-center font-bold ${
@@ -494,7 +518,7 @@ export default function OfficialReportsPage() {
               </div>
 
               {/* Official Signatures Footer */}
-              <div className="flex justify-between items-center pt-16 mt-8 px-8 text-xs font-bold text-black uppercase">
+              <div className="signature-block flex justify-between items-center pt-16 mt-8 px-8 text-xs font-bold text-black uppercase">
                 <span>Class teacher sign</span>
                 <span>Hm/Principal sign</span>
               </div>
@@ -549,70 +573,17 @@ export default function OfficialReportsPage() {
                 {/* Left Table: Student Marks for this Subject */}
                 <div className="overflow-x-auto">
                   <table className="official-table w-full text-xs text-black border-collapse border border-black">
-                    <thead>
-                      <tr className="bg-slate-100 font-bold border-b border-black text-center">
-                        <th rowSpan={2} className="border border-black px-1.5 py-1 w-10">S.No</th>
-                        <th rowSpan={2} className="border border-black px-2 py-1 w-20">Reg., No</th>
-                        <th rowSpan={2} className="border border-black px-3 py-1 text-left">Name of the Students</th>
-                        <th colSpan={3} className="border border-black px-2 py-1 uppercase">
-                          {currentSubjectAnalysis?.subject.name}
-                        </th>
-                      </tr>
-                      <tr className="bg-slate-100 font-bold border-b border-black text-center">
-                        <th className="border border-black px-2 py-1 w-12">
-                          {currentSubjectAnalysis?.subject.hasPractical ? "70" : "90"}
-                        </th>
-                        <th className="border border-black px-2 py-1 w-12">
-                          {currentSubjectAnalysis?.subject.hasPractical ? "20/10" : "10"}
-                        </th>
-                        <th className="border border-black px-2 py-1 w-20">
-                          With Internal (100)
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {currentSubjectAnalysis?.studentRows.map((r) => (
-                        <tr key={r.sNo} className="hover:bg-slate-50 border-b border-black">
-                          <td className="border border-black px-1.5 py-1 text-center font-medium tabular-nums">
-                            {r.sNo}
-                          </td>
-                          <td className="border border-black px-2 py-1 text-center font-mono font-medium">
-                            {r.regNo}
-                          </td>
-                          <td className="border border-black px-3 py-1 font-bold uppercase whitespace-nowrap">
-                            {r.name}
-                          </td>
-                          <td className="border border-black px-2 py-1 text-center tabular-nums font-semibold">
-                            {r.isAbsent ? "AB" : (r.theoryScore ?? "—")}
-                          </td>
-                          <td className="border border-black px-2 py-1 text-center tabular-nums font-semibold">
-                            {r.isAbsent
-                              ? "—"
-                              : currentSubjectAnalysis.subject.hasPractical
-                              ? `${r.practicalScore ?? 0}/${r.internalScore ?? 0}`
-                              : (r.internalScore ?? "—")}
-                          </td>
-                          <td
-                            className={`border border-black px-2 py-1 text-center tabular-nums font-bold ${
-                              !r.passed ? "text-rose-700 bg-rose-50/40 print:bg-transparent" : ""
-                            }`}
-                          >
-                            {r.isAbsent ? "AB" : (r.score ?? "—")}
-                          </td>
-                        </tr>
-                      ))}
-
-                      {/* Blank rows */}
-                      {paddedConsolidatedRows.map((_, i) => (
-                        <tr key={`blank-sub-${i}`} className="border-b border-black h-7">
-                          <td className="border border-black">&nbsp;</td>
-                          <td className="border border-black">&nbsp;</td>
-                          <td className="border border-black">&nbsp;</td>
-                          <td className="border border-black">&nbsp;</td>
-                          <td className="border border-black">&nbsp;</td>
-                          <td className="border border-black">&nbsp;</td>
-                        </tr>
-                      ))}
+                    <thead><tr><th scope="col">S.No</th><th scope="col">Exam No.</th><th scope="col">Student</th>
+                      {currentSubjectAnalysis?.subject.mode!=="TOTAL" && <th scope="col">Theory /{currentSubjectAnalysis?.subject.theoryMarks}</th>}
+                      {Boolean(currentSubjectAnalysis?.subject.practicalMarks) && <th scope="col">Practical /{currentSubjectAnalysis?.subject.practicalMarks}</th>}
+                      {Boolean(currentSubjectAnalysis?.subject.internalMarks) && <th scope="col">Internal /{currentSubjectAnalysis?.subject.internalMarks}</th>}
+                      <th scope="col">Total /100</th><th scope="col">Result / state</th></tr></thead>
+                    <tbody>{currentSubjectAnalysis?.studentRows.map((r)=><tr key={r.sNo}><td>{r.sNo}</td><td>{r.regNo}</td><td>{r.name}</td>
+                      {currentSubjectAnalysis.subject.mode!=="TOTAL" && <td>{r.theoryScore ?? "—"}</td>}
+                      {Boolean(currentSubjectAnalysis.subject.practicalMarks) && <td>{r.practicalScore ?? "—"}</td>}
+                      {Boolean(currentSubjectAnalysis.subject.internalMarks) && <td>{r.internalScore ?? "—"}</td>}
+                      <td>{r.isAbsent?"AB":r.isExempt?"Exemption":r.score ?? "—"}</td><td>{r.result}</td></tr>)}
+                      {Array.from({length:Math.max(0,20-(currentSubjectAnalysis?.studentRows.length ?? 0))},(_,i)=><tr key={`padded-${i}`} className="h-7"><td colSpan={5+(currentSubjectAnalysis?.subject.mode!=="TOTAL"?1:0)+(currentSubjectAnalysis?.subject.practicalMarks?1:0)+(currentSubjectAnalysis?.subject.internalMarks?1:0)}>&nbsp;</td></tr>)}
                     </tbody>
                   </table>
                 </div>
@@ -627,8 +598,8 @@ export default function OfficialReportsPage() {
                       <thead>
                         <tr className="bg-slate-100 font-bold border-b border-black text-center">
                           <th className="border-r border-black px-3 py-1.5 text-left">Particulars</th>
-                          <th className="border-r border-black px-2 py-1.5 w-14">B</th>
-                          <th className="border-r border-black px-2 py-1.5 w-14">G</th>
+                          <th className="border-r border-black px-2 py-1.5 w-14">Male</th>
+                          <th className="border-r border-black px-2 py-1.5 w-14">Female</th>
                           <th className="px-2 py-1.5 w-16">TOT</th>
                         </tr>
                       </thead>
@@ -756,7 +727,7 @@ export default function OfficialReportsPage() {
               </div>
 
               {/* Official Signatures Footer */}
-              <div className="flex justify-between items-center pt-16 mt-8 px-8 text-xs font-bold text-black uppercase">
+              <div className="signature-block flex justify-between items-center pt-16 mt-8 px-8 text-xs font-bold text-black uppercase">
                 <span>HM/Principal sign</span>
                 <span>Subject Teacher sign</span>
               </div>
@@ -803,8 +774,8 @@ export default function OfficialReportsPage() {
                       {matrixReport.subjects.map((sa) => (
                         <th key={`${sa.subject.id}-cols`} colSpan={3} className="p-0 border border-black">
                           <div className="grid grid-cols-3 divide-x divide-black text-[11px]">
-                            <span className="py-1">B</span>
-                            <span className="py-1">G</span>
+                            <span className="py-1">Male</span>
+                            <span className="py-1">Female</span>
                             <span className="py-1 bg-slate-200/50">TOT</span>
                           </div>
                         </th>
@@ -874,8 +845,8 @@ export default function OfficialReportsPage() {
                     <thead>
                       <tr className="bg-slate-100 font-bold border-b border-black text-center">
                         <th className="border-r border-black px-2 py-1 text-left">Failed in</th>
-                        <th className="border-r border-black px-2 py-1 w-12">B</th>
-                        <th className="border-r border-black px-2 py-1 w-12">G</th>
+                        <th className="border-r border-black px-2 py-1 w-12">Male</th>
+                        <th className="border-r border-black px-2 py-1 w-12">Female</th>
                         <th className="px-2 py-1 w-14">TOT</th>
                       </tr>
                     </thead>
@@ -901,8 +872,8 @@ export default function OfficialReportsPage() {
                     <thead>
                       <tr className="bg-slate-100 font-bold border-b border-black text-center">
                         <th className="border-r border-black px-2 py-1 text-left">Subject</th>
-                        <th className="border-r border-black px-2 py-1 w-12">B</th>
-                        <th className="border-r border-black px-2 py-1 w-12">G</th>
+                        <th className="border-r border-black px-2 py-1 w-12">Male</th>
+                        <th className="border-r border-black px-2 py-1 w-12">Female</th>
                         <th className="px-2 py-1 w-14">TOT</th>
                       </tr>
                     </thead>
@@ -928,8 +899,8 @@ export default function OfficialReportsPage() {
                     <thead>
                       <tr className="bg-slate-100 font-bold border-b border-black text-center">
                         <th className="border-r border-black px-2 py-1 text-left">Particulars</th>
-                        <th className="border-r border-black px-2 py-1 w-12">B</th>
-                        <th className="border-r border-black px-2 py-1 w-12">G</th>
+                        <th className="border-r border-black px-2 py-1 w-12">Male</th>
+                        <th className="border-r border-black px-2 py-1 w-12">Female</th>
                         <th className="px-2 py-1 w-14">TOT</th>
                       </tr>
                     </thead>
@@ -964,7 +935,7 @@ export default function OfficialReportsPage() {
               </div>
 
               {/* Official Signatures Footer */}
-              <div className="flex justify-between items-center pt-16 mt-8 px-8 text-xs font-bold text-black uppercase">
+              <div className="signature-block flex justify-between items-center pt-16 mt-8 px-8 text-xs font-bold text-black uppercase">
                 <span>HM/Principal sign</span>
                 <span>Class teacher sign</span>
               </div>
@@ -974,169 +945,7 @@ export default function OfficialReportsPage() {
           {/* =========================================================================
               REPORT 4: GOVERNMENT OF TAMIL NADU - CCE REGISTER (Attachment 2)
               ========================================================================= */}
-          {activeTab === "cce" && data?.cceRegister && (
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 print:border-none print:shadow-none print:p-0">
-              {/* Emblem and Official State Header */}
-              <div className="text-center pb-3">
-                <div className="flex justify-center mb-1">
-                  <div className="w-14 h-14 relative flex items-center justify-center">
-                    <svg viewBox="0 0 100 100" className="w-full h-full text-emerald-800" fill="none">
-                      <circle cx="50" cy="50" r="46" stroke="#00a884" strokeWidth="3" />
-                      <circle cx="50" cy="50" r="41" stroke="#00a884" strokeWidth="1" strokeDasharray="2 2" />
-                      {/* Temple Gopuram */}
-                      <path d="M50 16 L43 28 L57 28 Z" fill="#00a884" />
-                      <rect x="41" y="28" width="18" height="6" fill="#00a884" />
-                      <rect x="38" y="34" width="24" height="6" fill="#00a884" />
-                      <rect x="35" y="40" width="30" height="7" fill="#00a884" />
-                      <rect x="32" y="47" width="36" height="8" fill="#00a884" />
-                      <rect x="29" y="55" width="42" height="10" fill="#00a884" />
-                      {/* Arch entrance */}
-                      <path d="M44 65 Q50 56 56 65 Z" fill="#ffffff" />
-                      {/* Base laurels */}
-                      <path d="M22 66 Q50 86 78 66" stroke="#d97706" strokeWidth="2.5" fill="none" />
-                    </svg>
-                  </div>
-                </div>
-                <h1 className="text-base font-bold tracking-tight text-black uppercase">
-                  Government of Tamil Nadu
-                </h1>
-                <h2 className="text-xs font-semibold tracking-wide text-slate-700 mt-0.5">
-                  School Education Department
-                </h2>
-              </div>
-
-              {/* Information Grid Box (Exact match to Attachment 2) */}
-              <div className="mt-3 border border-black text-xs text-black">
-                {/* Row 1 */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-black border-b border-black text-center">
-                  <div className="p-2">
-                    <span className="font-medium block text-slate-600 text-[11px]">Name of the Register</span>
-                    <span className="font-bold text-black text-xs">CCE Registers</span>
-                  </div>
-                  <div className="p-2">
-                    <span className="font-medium block text-slate-600 text-[11px]">Name of the School</span>
-                    <span className="font-bold text-black text-xs uppercase">{data.cceRegister.nameOfSchool}</span>
-                  </div>
-                  <div className="p-2">
-                    <span className="font-medium block text-slate-600 text-[11px]">UDISECode</span>
-                    <span className="font-bold text-black text-xs font-mono">{data.cceRegister.udiseCode}</span>
-                  </div>
-                </div>
-                {/* Row 2 */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-black text-center">
-                  <div className="p-2">
-                    <span className="font-medium block text-slate-600 text-[11px]">AcademicYear</span>
-                    <span className="font-bold text-black text-xs">{data.cceRegister.academicYear}</span>
-                  </div>
-                  <div className="p-2">
-                    <span className="font-medium block text-slate-600 text-[11px]">Class</span>
-                    <span className="font-bold text-black text-xs">{data.cceRegister.className}</span>
-                  </div>
-                  <div className="p-2">
-                    <span className="font-medium block text-slate-600 text-[11px]">Section</span>
-                    <span className="font-bold text-black text-xs">{data.cceRegister.section}</span>
-                  </div>
-                  <div className="p-2">
-                    <span className="font-medium block text-slate-600 text-[11px]">Term</span>
-                    <span className="font-bold text-black text-xs">{data.cceRegister.term}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* CCE Register Table with Teal Header */}
-              <div className="overflow-x-auto mt-4">
-                <table className="official-table w-full text-xs text-black border-collapse border border-black">
-                  <thead>
-                    <tr className="bg-[#00a884] text-white font-bold text-center border-b border-black">
-                      <th className="border border-black px-2 py-2.5 w-12 text-center text-white font-bold">
-                        S.no
-                      </th>
-                      <th className="border border-black px-3 py-2.5 w-28 text-left text-white font-bold">
-                        Emis Id
-                      </th>
-                      <th className="border border-black px-4 py-2.5 text-left text-white font-bold min-w-[140px]">
-                        Name of the Student
-                      </th>
-                      <th className="border border-black px-3 py-2.5 text-left text-white font-bold min-w-[120px]">
-                        Subject
-                      </th>
-                      <th className="border border-black px-2 py-2.5 text-center text-white font-bold whitespace-nowrap">
-                        FA(A) (Total 20)
-                      </th>
-                      <th className="border border-black px-2 py-2.5 text-center text-white font-bold whitespace-nowrap">
-                        FA(B) (Total 20)
-                      </th>
-                      <th className="border border-black px-2 py-2.5 text-center text-white font-bold whitespace-nowrap">
-                        FA TOTAL (OUT OF 40)
-                      </th>
-                      <th className="border border-black px-2 py-2.5 text-center text-white font-bold whitespace-nowrap">
-                        SA TOTAL (OUT OF 60)
-                      </th>
-                      <th className="border border-black px-2 py-2.5 text-center text-white font-bold whitespace-nowrap">
-                        TOTAL MARKS (OUT OF 100)
-                      </th>
-                      <th className="border border-black px-2 py-2.5 text-center text-white font-bold w-14">
-                        Grade
-                      </th>
-                      <th className="border border-black px-2 py-2.5 text-center text-white font-bold w-14">
-                        Level
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.cceRegister.rows.map((r, i) => (
-                      <tr
-                        key={r.sNo}
-                        className={`border-b border-black hover:bg-slate-50 ${
-                          i % 5 === 0 ? "border-t-2 border-t-black" : ""
-                        }`}
-                      >
-                        <td className="border border-black px-2 py-1.5 text-center font-medium tabular-nums">
-                          {r.sNo}
-                        </td>
-                        <td className="border border-black px-3 py-1.5 text-left font-mono font-medium">
-                          {r.emisId}
-                        </td>
-                        <td className="border border-black px-4 py-1.5 text-left font-bold uppercase whitespace-nowrap">
-                          {r.studentName}
-                        </td>
-                        <td className="border border-black px-3 py-1.5 text-left font-semibold uppercase">
-                          {r.subjectName}
-                        </td>
-                        <td className="border border-black px-2 py-1.5 text-center tabular-nums font-semibold">
-                          {r.faA}
-                        </td>
-                        <td className="border border-black px-2 py-1.5 text-center tabular-nums font-semibold">
-                          {r.faB}
-                        </td>
-                        <td className="border border-black px-2 py-1.5 text-center tabular-nums font-bold">
-                          {r.faTotal}
-                        </td>
-                        <td className="border border-black px-2 py-1.5 text-center tabular-nums font-medium">
-                          {r.saTotal}
-                        </td>
-                        <td className="border border-black px-2 py-1.5 text-center tabular-nums font-bold">
-                          {r.totalMarks}
-                        </td>
-                        <td className="border border-black px-2 py-1.5 text-center font-bold">
-                          {r.grade}
-                        </td>
-                        <td className="border border-black px-2 py-1.5 text-center font-bold">
-                          {r.level}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Official Signatures Footer */}
-              <div className="flex justify-between items-center pt-16 mt-8 px-8 text-xs font-bold text-black uppercase">
-                <span>Class teacher sign</span>
-                <span>HM/Principal sign</span>
-              </div>
-            </div>
-          )}
+          {activeTab === "cce" && <Card><h2 className="font-semibold">CCE Register is unavailable</h2><p>FA Total, Level mapping, terms, entry permissions and publication/edit workflow require approval. No ordinary exam marks are converted into CCE scores.</p></Card>}
 
           {/* =========================================================================
               REPORT 5: FORM - II RESULT ANALYSIS REPORT (Class Wise / Teachers Performance)
